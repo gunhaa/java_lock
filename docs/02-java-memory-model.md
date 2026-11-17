@@ -86,10 +86,10 @@ JDK의 동시성 도구들은 javadoc의 "Memory Consistency Effects"에 각자�
 | `Lock` | `unlock()` → 이후 `lock()` (모니터와 같음) | `ReentrantLockCounter` |
 | `Condition` | `signal()` 전의 동작 → 깨어난 `await()` 이후 | `ConditionBoundedBuffer` |
 | `Semaphore` | `release()` 전의 동작 → 그 허가로 성공한 `acquire()` 이후 | `SemaphoreLimiter` |
-| `CountDownLatch` | `countDown()` 전의 동작 → 그 덕분에 돌아온 `await()` 이후 | `TaskGroup` |
+| `CountDownLatch` | `countDown()` 전의 동작 → 그 덕분에 돌아온 `await()` 이후 | `TaskGroup`, `TestThreads.runConcurrently` |
 | `CyclicBarrier` | 각 스레드의 `await()` 전 → barrier action → 다른 스레드들의 `await()` 이후 | `PhaseRunner` |
-| `ExecutorService` | `submit()` 전 → 작업 실행, 작업 실행 → `Future.get()` 이후 | `TestThreads.runConcurrently` |
-| 동시성 컬렉션 | 넣기 전의 동작 → 그 원소를 꺼낸 이후 | |
+| `Executor` / `Future` | `execute()`·`submit()` 전 → 작업 실행, 작업 실행 → `Future.get()` 이후 | `TestThreads.runConcurrently`(제출), `TestThreads.Started.join()`(결과) |
+| 동시성 컬렉션 | 넣기 전의 동작 → 그 원소를 꺼낸 이후 | `TestThreads.runConcurrently`의 예외 수집 큐 |
 | `Atomic*` | `set`/`compareAndSet`은 volatile 쓰기, `get`은 volatile 읽기와 같음 | `CasCounter` |
 
 `TaskGroupTest`가 volatile이 아닌 `int[]` 배열로 결과를 받아도 되는 이유가 이 표의 `CountDownLatch` 줄입니다.

@@ -1,17 +1,14 @@
 package com.gunha.lock.support;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * 동시성 테스트용 도우미.
@@ -73,37 +70,46 @@ public final class TestThreads {
 	/**
 	 * threads개 작업을 동시에 출발시켜 각자 action을 iterations번 실행하고, 모두 끝날 때까지 기다린다.
 	 * <p>
-	 * 작업에서 난 예외는 {@link AssertionError}로 다시 던지고, 시간 안에 끝나지 않아도 실패시킨다.
-	 * 정상적으로 돌아오면 {@code Future.get()} 덕분에 작업 안의 모든 쓰기가 호출자에게 보인다(happens-before).
+	 * 작업에서 난 예외는 모두 모아 하나의 {@link AssertionError}로 던지고(suppressed), 시간 안에 끝나지 않아도 실패시킨다.
+	 * 정상적으로 돌아오면 {@code countDown()} → {@code await()}의 happens-before 덕분에 작업 안의 모든 쓰기가 호출자에게 보인다.
 	 */
 	public static void runConcurrently(int threads, int iterations, Runnable action) throws InterruptedException {
 		CountDownLatch startGate = new CountDownLatch(1);
+		CountDownLatch done = new CountDownLatch(threads);
+		Queue<Throwable> errors = new ConcurrentLinkedQueue<>();
 		// 풀 크기가 작업 수보다 작으면 일부 작업이 큐에서 기다려 동시에 돌지 않으므로 같게 맞춘다.
 		// 데몬 스레드라서 멈춘 작업이 남아도 테스트 JVM 종료를 막지 않는다.
 		ExecutorService pool = Executors.newFixedThreadPool(threads,
 				Thread.ofPlatform().name("worker-", 0).daemon().factory());
 		try {
-			List<Future<?>> futures = new ArrayList<>();
 			for (int i = 0; i < threads; i++) {
-				futures.add(pool.submit(() -> {
-					awaitLatch(startGate);
-					for (int j = 0; j < iterations; j++) {
-						action.run();
+				pool.execute(() -> {
+					try {
+						awaitLatch(startGate);
+						for (int j = 0; j < iterations; j++) {
+							action.run();
+						}
 					}
-				}));
+					catch (Throwable ex) {
+						errors.add(ex);
+					}
+					finally {
+						// 실패한 작업도 세야 시간 초과로 잘못 보고되지 않는다.
+						done.countDown();
+					}
+				});
 			}
 			startGate.countDown();
 
-			long deadline = System.nanoTime() + CONCURRENT_TIMEOUT.toNanos();
-			for (Future<?> future : futures) {
-				future.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+			if (!done.await(CONCURRENT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
+				throw new AssertionError("작업이 " + CONCURRENT_TIMEOUT.toSeconds() + "초 안에 끝나지 않음 (남은 작업 "
+						+ done.getCount() + "개)");
 			}
-		}
-		catch (ExecutionException ex) {
-			throw new AssertionError("작업 중 예외 발생", ex.getCause());
-		}
-		catch (TimeoutException ex) {
-			throw new AssertionError("작업이 " + CONCURRENT_TIMEOUT.toSeconds() + "초 안에 끝나지 않음", ex);
+			if (!errors.isEmpty()) {
+				AssertionError failure = new AssertionError("작업 " + errors.size() + "개에서 예외 발생");
+				errors.forEach(failure::addSuppressed);
+				throw failure;
+			}
 		}
 		finally {
 			// close()는 모든 작업이 끝날 때까지(인터럽트를 받아도) 기다리므로, 멈춘 작업이 있으면 테스트도 같이 멈춘다.

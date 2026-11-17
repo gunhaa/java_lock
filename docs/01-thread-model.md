@@ -114,4 +114,4 @@ OS 커널 스레드
 | 결과·완료 대기 | `join()` | `Future.get()`, `invokeAll()`, `shutdown()` + `awaitTermination()` |
 | 종료 | 스레드가 끝나면 끝 | `shutdown()`/`shutdownNow()`/`close()`를 반드시 불러야 함. 기본 스레드가 비데몬이라 안 부르면 JVM이 끝나지 않을 수 있음 |
 
-테스트 도우미 `TestThreads.runConcurrently`가 `ExecutorService`를 쓰는 이유도 예외와 시간 초과를 `Future`로 확실히 받기 위해서입니다.
+테스트 도우미 `TestThreads.runConcurrently`는 `ExecutorService`로 스레드를 관리합니다. 다만 완료는 `Future`가 아니라 `CountDownLatch`로 기다리고, 작업 예외는 작업 안에서 직접 잡아 큐에 모읍니다. 그래서 첫 예외만이 아니라 실패한 작업의 예외를 모두 보고할 수 있습니다.

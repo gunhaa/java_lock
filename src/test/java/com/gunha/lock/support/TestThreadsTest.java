@@ -22,11 +22,13 @@ class TestThreadsTest {
 	}
 
 	@Test
-	@DisplayName("작업에서 난 예외를 삼키지 않고 AssertionError로 알린다")
-	void propagatesTaskException() {
+	@DisplayName("작업에서 난 예외를 삼키지 않고, 모두 모아 AssertionError로 알린다")
+	void propagatesAllTaskExceptions() {
 		assertThatThrownBy(() -> TestThreads.runConcurrently(2, 1, () -> {
 			throw new IllegalStateException("작업 실패");
-		})).isInstanceOf(AssertionError.class).hasCauseInstanceOf(IllegalStateException.class);
+		})).isInstanceOf(AssertionError.class)
+			.satisfies(failure -> assertThat(failure.getSuppressed()).hasSize(2)
+				.allMatch(IllegalStateException.class::isInstance));
 	}
 
 }
