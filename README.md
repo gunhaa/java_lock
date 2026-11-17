@@ -5,6 +5,8 @@ Java의 락과 동기화 API를 **예제 코드 + 테스트**로 학습하는 �
 - 예제 클래스(`src/main`)의 주석에 각 도구가 **JVM**(바이트코드, 객체 헤더, AQS)과 **OS**(park, futex, 컨텍스트 스위치)에서 어떻게 동작하는지 정리했습니다.
 - 예제마다 테스트(`src/test`)가 있어 상호 배제, 대기 상태, 재진입 같은 성질을 직접 확인합니다.
 
+> **처음이라면 [선행 지식 문서](docs/README.md)부터 읽어 보세요.** 스레드 모델, 자바 메모리 모델(JMM), 캐시와 OS 대기 구조를 정리해 두었습니다. 예제 주석에 나오는 용어는 모두 여기서 설명합니다.
+
 ## 환경
 
 | 항목 | 버전 |
@@ -94,6 +96,8 @@ Started<Void> contender = TestThreads.start("contender", () -> {
 });
 TestThreads.awaitState(contender.thread(), Thread.State.WAITING); // 지금 락을 기다리는 중임을 확인
 ```
+
+여러 스레드로 같은 동작을 반복하는 테스트는 `TestThreads.runConcurrently`가 맡습니다. `ExecutorService`에 작업을 제출하고 `CountDownLatch`로 동시에 출발시킨 뒤, `Future.get()`으로 완료를 기다립니다. 작업에서 난 예외와 시간 초과는 테스트 실패로 이어지고, `Future.get()`의 happens-before 덕분에 작업 결과가 테스트 스레드에 보입니다.
 
 모든 테스트 클래스에는 `@Timeout`이 붙어 있어서, 교착이 생기면 멈추지 않고 실패로 끝납니다.
 
