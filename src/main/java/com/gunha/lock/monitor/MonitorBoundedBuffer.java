@@ -6,6 +6,9 @@ import java.util.Deque;
 /**
  * {@code wait/notifyAll}로 만든 크기 제한 버퍼(생산자-소비자).
  *
+ * {@code synchronized} 메서드와 {@code wait()}/{@code notifyAll()}은 모두 버퍼 객체({@code this})의 모니터를 쓴다.
+ * 모니터의 {@code _owner}, 입장 대기줄, {@code _WaitSet} 구조와 스레드가 그 사이를 오가는 그림은 {@code package-info.java}(이 패키지 설명)에 있다.
+ *
  * <h2>wait()이 하는 일</h2>
  * <ol>
  * <li>모니터를 가진 상태에서만 부를 수 있다. 아니면 {@link IllegalMonitorStateException}.</li>
@@ -24,10 +27,20 @@ import java.util.Deque;
  * 그래서 깨어나면 조건을 반드시 다시 확인한다.
  *
  * <h2>왜 notify가 아니라 notifyAll인가</h2>
- * 모니터에는 WaitSet이 <b>하나</b>뿐이다. 생산자와 소비자가 같은 집합에서 기다리기 때문에,
- * {@code notify()}가 하나만 깨우면 엉뚱하게 같은 편(생산자가 생산자를)을 깨울 수 있다.
- * 그러면 신호가 유실되고 모두 잠들어 버릴 수 있다. {@code notifyAll()}은 안전한 대신 불필요한 스레드까지 깨워
- * 컨텍스트 스위치가 늘어난다(thundering herd). 조건 큐를 나누는 해법이 {@link com.gunha.lock.locks.ConditionBoundedBuffer}다.
+ * 모니터에는 WaitSet이 <b>하나</b>뿐이라, 가득 차서 기다리는 생산자와 비어서 기다리는 소비자가 한 집합에 섞여 있다.
+ * {@code notify()}는 그중 <b>아무 스레드 하나를 한 번만</b> 깨운다. 누구를 깨울지 고를 수 없고, 맞지 않아도 다시 시도하지 않는다.
+ * <ol>
+ * <li>소비자가 값을 꺼낸 뒤 생산자를 깨우려고 {@code notify()}를 불렀는데, 다른 소비자가 깨어날 수 있다.</li>
+ * <li>깨어난 소비자는 {@code while}로 확인해 보니 여전히 비어 있어 다시 {@code wait()}한다. 신호는 이 스레드가 써 버려서 사라진다.</li>
+ * <li>깨어나야 했던 생산자는 계속 잠들어 있다. 이렇게 모든 스레드가 WaitSet에 들어가면 깨워 줄 스레드가 없어 영원히 멈춘다.</li>
+ * </ol>
+ * {@code notifyAll()}은 기다리는 스레드를 <b>한 번에 모두</b> 깨운다. 깨어난 스레드들은 모니터를 차례로 다시 잡고
+ * {@code while}로 조건을 확인해, 조건이 맞는 쪽은 진행하고 아닌 쪽은 다시 {@code wait()}한다. 필요한 쪽이 반드시 깨어나므로 안전하다.
+ * 대신 깨어날 필요가 없는 스레드까지 깨워 컨텍스트 스위치가 늘어난다(thundering herd).
+ * {@code notifyAll()}은 깨우기를 반복하지 않는다. 한 번에 모두 입장 대기줄로 옮길 뿐이고, 줄에 선 스레드가 하나씩 들어와
+ * 조건이 안 맞으면 다시 {@code wait()}으로 돌아간다. 돌아간 스레드는 다음 {@code put}/{@code take}가 부르는 {@code notifyAll()}을 기다린다.
+ * <p>
+ * 조건 큐를 나눠 필요한 쪽만 깨우는 해법이 {@link com.gunha.lock.locks.ConditionBoundedBuffer}다.
  *
  * <h2>신호는 저장되지 않는다</h2>
  * 기다리는 스레드가 없을 때 부른 {@code notify()}는 그냥 사라진다. 그래서 상태(여기서는 {@code items})를

@@ -14,23 +14,9 @@ package com.gunha.lock.monitor;
  * 확인: {@code ./gradlew compileJava} 후
  * {@code javap -c -v build/classes/java/main/com/gunha/lock/monitor/SynchronizedCounter.class}
  *
- * <h2>객체 헤더와 락 상태 (HotSpot, JDK 21 기본 설정)</h2>
- * 64비트 JVM에서 모든 객체 헤더 앞부분에는 8바이트 mark word가 있고, 하위 비트가 락 상태를 나타낸다.
- * <ol>
- * <li><b>잠기지 않음</b> ({@code 01}): mark word에 해시코드, GC 나이가 들어 있다.</li>
- * <li><b>스택 락 / thin lock</b> ({@code 00}): 경합이 없을 때. 소유 스레드가 자기 스택에 lock record를 만들고
- *     원래 mark word를 거기 복사한 뒤, CAS로 mark word가 lock record를 가리키게 한다.
- *     CAS 한 번(x86 {@code lock cmpxchg})이면 끝나고 OS는 관여하지 않는다.</li>
- * <li><b>팽창 / inflated</b> ({@code 10}): 다른 스레드가 같은 락을 원하거나 {@code wait()}을 부르면
- *     {@code ObjectMonitor}를 만들어 mark word가 그것을 가리키게 한다. {@code ObjectMonitor}는
- *     소유자({@code _owner}), 재진입 횟수({@code _recursions}), 진입 대기 큐({@code _cxq}, {@code _EntryList}),
- *     {@code wait()} 대기 집합({@code _WaitSet})을 가진다.</li>
- * </ol>
- * 진입을 기다리는 스레드는 먼저 적응형 스핀(adaptive spinning)으로 잠깐 버틴다. 그래도 못 잡으면
- * OS 대기(Linux futex, Windows 이벤트)로 들어가 {@code Thread.State.BLOCKED}가 된다.
- * <p>
- * 참고: 편향 락(biased locking)은 JDK 15에서 기본 비활성화, JDK 18에서 제거되어 21에는 없다.
- * 스레드별 lock stack을 쓰는 lightweight locking({@code -XX:LockingMode=2})은 JDK 21에서는 옵션이고, JDK 23부터 기본값이다.
+ * <h2>락 상태</h2>
+ * 락 상태는 객체 헤더의 mark word에 기록된다. 비트 배치, 스택 락에서 팽창으로 넘어가는 과정, JDK 버전별 변화는
+ * {@code package-info.java}(이 패키지 설명)에 그림으로 정리했다.
  *
  * <h2>재진입</h2>
  * 이미 락을 가진 스레드가 같은 모니터에 다시 들어가면 막히지 않고 재진입 횟수만 늘어난다.

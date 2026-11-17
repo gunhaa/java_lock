@@ -46,10 +46,12 @@ src/main/java/com/gunha/lock
 
 ### monitor: JVM 내장 모니터
 
+객체 헤더와 mark word의 비트 배치, 스택 락에서 팽창으로 넘어가는 과정, JDK 버전별 변화는 `monitor/package-info.java`에 그림으로 정리했습니다.
+
 | 예제 | 다루는 내용 |
 |---|---|
 | `UnsafeCounter` | 락이 없을 때의 갱신 유실. `volatile`은 가시성만 주고 원자성은 주지 않음 |
-| `SynchronizedCounter` | `monitorenter`/`monitorexit`, mark word와 락 팽창, 재진입, 대기자가 `BLOCKED`가 되는 것 |
+| `SynchronizedCounter` | `monitorenter`/`monitorexit`, 락 팽창, 재진입, 대기자가 `BLOCKED`가 되는 것 |
 | `MonitorBoundedBuffer` | `wait/notifyAll` 생산자-소비자, `while`로 조건을 다시 확인하는 이유, WaitSet이 하나뿐인 한계 |
 
 ### locks: 명시적 락
