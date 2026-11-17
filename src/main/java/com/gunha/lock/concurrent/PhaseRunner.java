@@ -28,6 +28,10 @@ import java.util.function.IntBinaryOperator;
  * <h2>메모리 가시성</h2>
  * 각 스레드의 {@code await()} 이전 동작 → barrier action → 다른 스레드들의 {@code await()} 이후 순서로 happens-before가 이어진다.
  * 그래서 아래 {@code contributions} 배열은 volatile이 아니어도 된다.
+ *
+ * <h2>테스트로 확인</h2>
+ * 라운드마다 모두 모인 뒤 합계를 계산하고, 배리어를 다시 쓴다.
+ * {@snippet file="com/gunha/lock/concurrent/PhaseRunnerTest.java" region="rounds"}
  */
 public final class PhaseRunner {
 

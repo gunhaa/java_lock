@@ -13,10 +13,12 @@ class OneShotSignalTest {
 	@Test
 	@DisplayName("unpark가 park보다 먼저 와도 permit이 남아 있어 park가 바로 돌아온다")
 	void unparkBeforePark() {
+		// @start region="permit"
 		LockSupport.unpark(Thread.currentThread());
 
 		// permit이 없었다면 여기서 영원히 잠들어 @Timeout으로 실패한다.
 		LockSupport.park();
+		// @end
 	}
 
 	@Test

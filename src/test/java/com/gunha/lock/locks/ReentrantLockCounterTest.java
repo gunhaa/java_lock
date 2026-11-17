@@ -42,6 +42,7 @@ class ReentrantLockCounterTest {
 	@Test
 	@DisplayName("락을 기다리는 스레드는 BLOCKED가 아니라 WAITING이다 (AQS가 park로 재우므로)")
 	void contenderIsWaitingNotBlocked() throws Exception {
+		// @start region="waiting"
 		ReentrantLockCounter counter = new ReentrantLockCounter(false);
 		CountDownLatch release = new CountDownLatch(1);
 		Started<Void> holder = holdLock(counter, release);
@@ -56,6 +57,7 @@ class ReentrantLockCounterTest {
 		holder.join();
 		contender.join();
 		assertThat(counter.get()).isEqualTo(1);
+		// @end
 	}
 
 	@Test
@@ -92,6 +94,7 @@ class ReentrantLockCounterTest {
 	@Test
 	@DisplayName("lockInterruptibly로 기다리는 스레드는 인터럽트로 깨워 포기시킬 수 있다")
 	void lockInterruptibly() throws Exception {
+		// @start region="interruptibly"
 		ReentrantLockCounter counter = new ReentrantLockCounter(false);
 		CountDownLatch release = new CountDownLatch(1);
 		Started<Void> holder = holdLock(counter, release);
@@ -108,6 +111,7 @@ class ReentrantLockCounterTest {
 		release.countDown();
 		holder.join();
 		assertThat(counter.get()).isZero();
+		// @end
 	}
 
 	@Test

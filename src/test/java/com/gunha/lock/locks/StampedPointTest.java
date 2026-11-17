@@ -23,6 +23,7 @@ class StampedPointTest {
 	@Test
 	@DisplayName("낙관적 읽기 도중 쓰기가 끼어들면 validate가 실패해 읽기 락으로 다시 읽는다")
 	void optimisticReadFallsBackWhenWritten() {
+		// @start region="optimistic"
 		StampedPoint point = new StampedPoint();
 
 		// 낙관적으로 (0, 0)을 읽은 직후 (3, 4)로 이동시킨다.
@@ -30,6 +31,7 @@ class StampedPointTest {
 		double distance = point.distanceFromOrigin(() -> point.move(3, 4));
 
 		assertThat(distance).isEqualTo(5.0);
+		// @end
 	}
 
 	@Test

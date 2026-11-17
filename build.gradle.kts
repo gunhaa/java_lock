@@ -26,3 +26,13 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+tasks.javadoc {
+	// 예제 클래스 Javadoc의 {@snippet file=...}이 테스트 코드를 가져온다.
+	val snippetDir = file("src/test/java")
+	inputs.dir(snippetDir)
+	(options as StandardJavadocDocletOptions).apply {
+		isLinkSource = true
+		addStringOption("-snippet-path", snippetDir.absolutePath)
+	}
+}

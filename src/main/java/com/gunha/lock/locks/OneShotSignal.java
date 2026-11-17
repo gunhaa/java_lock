@@ -28,6 +28,10 @@ import java.util.concurrent.locks.LockSupport;
  *     그래서 반드시 조건 변수({@code signaled})와 함께 루프로 쓴다.</li>
  * <li>{@code park(this)}처럼 blocker 객체를 넘기면 스레드 덤프에 "무엇을 기다리는지"가 찍힌다.</li>
  * </ul>
+ *
+ * <h2>테스트로 확인</h2>
+ * {@code unpark}가 먼저 와도 permit이 남아 있어 {@code park}가 바로 돌아온다.
+ * {@snippet file="com/gunha/lock/locks/OneShotSignalTest.java" region="permit"}
  */
 public class OneShotSignal {
 

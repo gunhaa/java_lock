@@ -23,6 +23,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * 여기서는 "가득 차지 않음"({@code notFull})과 "비어 있지 않음"({@code notEmpty})을 따로 기다리므로,
  * 깨워야 할 쪽만 정확히 하나 깨우는 {@code signal()}로 충분하다. 쓸데없는 깨우기와 컨텍스트 스위치가 줄어든다.
  * JDK의 {@link java.util.concurrent.ArrayBlockingQueue}가 정확히 이 구조다.
+ *
+ * <h2>테스트로 확인</h2>
+ * 소비자는 {@code notEmpty} 큐에서만 기다리고, {@code notFull} 큐는 비어 있다.
+ * {@snippet file="com/gunha/lock/locks/ConditionBoundedBufferTest.java" region="condition-queue"}
  */
 public class ConditionBoundedBuffer<E> {
 

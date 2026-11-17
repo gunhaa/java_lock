@@ -16,6 +16,7 @@ class ConditionBoundedBufferTest {
 	@Test
 	@DisplayName("빈 버퍼에서 take하면 notEmpty 조건 큐에서 기다린다")
 	void takerWaitsOnNotEmpty() throws Exception {
+		// @start region="condition-queue"
 		ConditionBoundedBuffer<String> buffer = new ConditionBoundedBuffer<>(1);
 		Started<String> consumer = TestThreads.start("consumer", buffer::take);
 
@@ -26,6 +27,7 @@ class ConditionBoundedBufferTest {
 		buffer.put("hello");
 		assertThat(consumer.join()).isEqualTo("hello");
 		assertThat(buffer.hasWaitingTakers()).isFalse();
+		// @end
 	}
 
 	@Test

@@ -27,6 +27,10 @@ import java.util.concurrent.TimeUnit;
  * <h2>메모리 가시성</h2>
  * {@code countDown()} 이전의 동작은 그 카운트다운 덕분에 돌아온 {@code await()} 이후보다 happens-before다.
  * 그래서 작업 스레드가 volatile이 아닌 배열에 쓴 결과도, {@code done.await()} 뒤의 호출자는 정확히 본다.
+ *
+ * <h2>테스트로 확인</h2>
+ * {@code await}가 {@code true}를 돌려주면 작업이 쓴 결과가 호출자에게 보인다.
+ * {@snippet file="com/gunha/lock/concurrent/TaskGroupTest.java" region="latch"}
  */
 public final class TaskGroup {
 

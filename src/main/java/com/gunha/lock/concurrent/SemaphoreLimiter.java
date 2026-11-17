@@ -22,6 +22,10 @@ import java.util.concurrent.Semaphore;
  *     그래서 아래처럼 반드시 {@code acquire} 성공 뒤의 {@code finally}에서만 해제한다.</li>
  * <li>재진입 개념도 없다. 허가 1개짜리(binary semaphore)에서 같은 스레드가 두 번 얻으려 하면 자기 자신을 기다린다.</li>
  * </ul>
+ *
+ * <h2>테스트로 확인</h2>
+ * 허가 3개가 모두 쓰이면 네 번째 호출은 {@code WAITING}으로 기다린다.
+ * {@snippet file="com/gunha/lock/concurrent/SemaphoreLimiterTest.java" region="limit"}
  */
 public class SemaphoreLimiter {
 

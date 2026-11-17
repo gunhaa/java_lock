@@ -29,6 +29,10 @@ import java.util.function.Function;
  * 캐시 라인을 번갈아 소유하려 하는 캐시 라인 핑퐁이 생겨 기대만큼 빨라지지 않는다.
  * 읽기 구간이 충분히 길거나(조회·계산), 쓰기가 드물 때 효과가 크다.
  * 아주 짧은 읽기가 많다면 쓰기를 전혀 하지 않는 {@link StampedPoint}의 낙관적 읽기가 대안이다.
+ *
+ * <h2>테스트로 확인</h2>
+ * 쓰기 → 읽기 다운그레이드는 되고, 읽기 → 쓰기 업그레이드는 안 된다.
+ * {@snippet file="com/gunha/lock/locks/ReadWriteCacheTest.java" region="downgrade"}
  */
 public class ReadWriteCache<K, V> {
 

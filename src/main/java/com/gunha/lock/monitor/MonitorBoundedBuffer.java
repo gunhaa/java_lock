@@ -32,6 +32,10 @@ import java.util.Deque;
  * <h2>신호는 저장되지 않는다</h2>
  * 기다리는 스레드가 없을 때 부른 {@code notify()}는 그냥 사라진다. 그래서 상태(여기서는 {@code items})를
  * 모니터 안에 두고 조건으로 확인해야 한다. {@link java.util.concurrent.locks.LockSupport}의 permit과 비교해 볼 것.
+ *
+ * <h2>테스트로 확인</h2>
+ * 소비자는 {@code wait()} 중에 모니터를 놓으므로 생산자가 들어와 값을 넣을 수 있다.
+ * {@snippet file="com/gunha/lock/monitor/MonitorBoundedBufferTest.java" region="wait-notify"}
  */
 public class MonitorBoundedBuffer<E> {
 

@@ -28,6 +28,10 @@ package com.gunha.lock.monitor;
  * "같은 라인의 최신 값"은 보장하지만 "읽고 쓰는 사이에 남이 못 쓰게"는 보장하지 않는다.
  * 그 보장은 x86의 {@code lock} 접두 명령(예: {@code lock xadd})처럼 특별한 명령이나 락이 있어야 한다.
  *
+ * <h2>테스트로 확인</h2>
+ * 8개 스레드가 10만 번씩 증가시키면 결과가 80만보다 작다.
+ * {@snippet file="com/gunha/lock/monitor/UnsafeCounterTest.java" region="lost-update"}
+ *
  * @see SynchronizedCounter
  * @see com.gunha.lock.concurrent.CasCounter
  */

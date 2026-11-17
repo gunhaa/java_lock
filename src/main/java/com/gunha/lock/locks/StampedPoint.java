@@ -30,6 +30,10 @@ import java.util.concurrent.locks.StampedLock;
  * <li>{@code Condition}이 없다. {@code readLock()}/{@code writeLock()}은 인터럽트로 깨울 수 없다(Interruptibly 버전 사용).</li>
  * <li>검증 전에는 읽은 값을 믿으면 안 된다. 특히 읽은 참조를 따라가거나, 그 값으로 예외가 날 수 있는 계산을 하면 안 된다.</li>
  * </ul>
+ *
+ * <h2>테스트로 확인</h2>
+ * 낙관적 읽기 도중 쓰기가 끼어들면 {@code validate}가 실패해 읽기 락으로 다시 읽는다.
+ * {@snippet file="com/gunha/lock/locks/StampedPointTest.java" region="optimistic"}
  */
 public class StampedPoint {
 

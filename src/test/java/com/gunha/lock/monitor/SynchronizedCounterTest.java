@@ -47,6 +47,7 @@ class SynchronizedCounterTest {
 	@Test
 	@DisplayName("모니터 진입을 기다리는 스레드는 BLOCKED 상태가 된다")
 	void contenderIsBlocked() throws Exception {
+		// @start region="blocked"
 		SynchronizedCounter counter = new SynchronizedCounter();
 		CountDownLatch entered = new CountDownLatch(1);
 		CountDownLatch release = new CountDownLatch(1);
@@ -71,6 +72,7 @@ class SynchronizedCounterTest {
 		holder.join();
 		contender.join();
 		assertThat(counter.get()).isEqualTo(1);
+		// @end
 	}
 
 }

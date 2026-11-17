@@ -22,6 +22,10 @@ import java.util.concurrent.atomic.LongAdder;
  * <li>셀 배열만큼 메모리를 더 쓴다. {@code incrementAndGet()}처럼 "더한 직후의 값"을 받을 수 없다.</li>
  * <li>그래서 시퀀스 번호 발급처럼 매번 정확한 값이 필요하면 {@code AtomicLong}, 통계·메트릭이면 {@code LongAdder}를 쓴다.</li>
  * </ul>
+ *
+ * <h2>테스트로 확인</h2>
+ * 여러 셀에 나눠 더해도, 갱신이 멈춘 뒤의 합계는 정확하다.
+ * {@snippet file="com/gunha/lock/concurrent/HitCounterTest.java" region="adder"}
  */
 public class HitCounter {
 

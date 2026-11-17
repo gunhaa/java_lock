@@ -46,6 +46,12 @@ import java.util.concurrent.locks.ReentrantLock;
  * <h2>메모리 가시성</h2>
  * {@code Lock} 명세가 모니터와 같은 메모리 의미를 보장한다. 구현으로 보면 {@code state}가 volatile이라,
  * 해제 시 volatile 쓰기 → 다음 획득 시 volatile 읽기 사이에 happens-before가 성립한다.
+ *
+ * <h2>테스트로 확인</h2>
+ * 같은 경합이라도 AQS는 {@code park}로 재우므로 {@code WAITING}이다.
+ * {@snippet file="com/gunha/lock/locks/ReentrantLockCounterTest.java" region="waiting"}
+ * {@code lockInterruptibly}로 기다리는 스레드는 인터럽트로 포기시킬 수 있다.
+ * {@snippet file="com/gunha/lock/locks/ReentrantLockCounterTest.java" region="interruptibly"}
  */
 public class ReentrantLockCounter {
 

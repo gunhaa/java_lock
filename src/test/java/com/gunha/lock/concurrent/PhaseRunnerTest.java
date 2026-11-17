@@ -20,11 +20,13 @@ class PhaseRunnerTest {
 	@Test
 	@DisplayName("라운드마다 모두 모인 뒤 합계가 기록되고, 배리어는 라운드마다 재사용된다")
 	void sumsEachRound() throws InterruptedException {
+		// @start region="rounds"
 		// 작업자 i의 라운드 r 기여 = (i + 1) * (r + 1). 작업자 4명이면 라운드 합은 10, 20, 30.
 		var totals = PhaseRunner.run(4, 3, (worker, round) -> (worker + 1) * (round + 1));
 
 		// 다음 라운드 값으로 덮어쓰기 전에 합계가 계산되지 않았다면 섞인 값이 나온다.
 		assertThat(totals).containsExactly(10, 20, 30);
+		// @end
 	}
 
 	@Test

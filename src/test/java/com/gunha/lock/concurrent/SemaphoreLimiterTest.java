@@ -18,6 +18,7 @@ class SemaphoreLimiterTest {
 	@Test
 	@DisplayName("허가 수만큼만 동시에 실행되고, 넘친 호출은 WAITING으로 기다린다")
 	void limitsConcurrency() throws Exception {
+		// @start region="limit"
 		SemaphoreLimiter limiter = new SemaphoreLimiter(3);
 		CountDownLatch entered = new CountDownLatch(3);
 		CountDownLatch release = new CountDownLatch(1);
@@ -42,6 +43,7 @@ class SemaphoreLimiterTest {
 		}
 		assertThat(fourth.join()).isEqualTo("fourth");
 		assertThat(limiter.availablePermits()).isEqualTo(3);
+		// @end
 	}
 
 	@Test

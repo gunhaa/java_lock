@@ -45,6 +45,10 @@ package com.gunha.lock.monitor;
  * 캐리어(OS) 스레드도 함께 묶인다(pinning). 모니터 소유권이 OS 스레드 기준으로 기록되기 때문이다.
  * {@code -Djdk.tracePinnedThreads=full}로 확인할 수 있고, JDK 24(JEP 491)에서 해결되었다.
  * 21에서 가상 스레드를 쓴다면 {@link com.gunha.lock.locks.ReentrantLockCounter} 쪽이 안전하다.
+ *
+ * <h2>테스트로 확인</h2>
+ * 모니터를 기다리는 스레드는 {@code BLOCKED}가 된다.
+ * {@snippet file="com/gunha/lock/monitor/SynchronizedCounterTest.java" region="blocked"}
  */
 public class SynchronizedCounter {
 

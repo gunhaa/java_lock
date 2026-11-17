@@ -87,6 +87,7 @@ class ReadWriteCacheTest {
 	@Test
 	@DisplayName("쓰기 → 읽기 다운그레이드는 되지만, 읽기 → 쓰기 업그레이드는 안 된다")
 	void downgradeYesUpgradeNo() {
+		// @start region="downgrade"
 		ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
 
 		// 업그레이드: 읽기 락을 쥔 채로는 쓰기 락을 얻지 못한다. lock()이었다면 영원히 기다린다.
@@ -101,6 +102,7 @@ class ReadWriteCacheTest {
 		assertThat(rwLock.isWriteLocked()).isFalse();
 		assertThat(rwLock.getReadLockCount()).isEqualTo(1);
 		rwLock.readLock().unlock();
+		// @end
 	}
 
 }

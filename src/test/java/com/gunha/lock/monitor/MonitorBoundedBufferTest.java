@@ -17,6 +17,7 @@ class MonitorBoundedBufferTest {
 	@Test
 	@DisplayName("빈 버퍼에서 take하면 WAITING으로 잠들고, put하면 깨어나 값을 받는다")
 	void takeWaitsUntilPut() throws Exception {
+		// @start region="wait-notify"
 		MonitorBoundedBuffer<String> buffer = new MonitorBoundedBuffer<>(1);
 		Started<String> consumer = TestThreads.start("consumer", buffer::take);
 
@@ -25,6 +26,7 @@ class MonitorBoundedBufferTest {
 		buffer.put("hello");
 
 		assertThat(consumer.join()).isEqualTo("hello");
+		// @end
 	}
 
 	@Test

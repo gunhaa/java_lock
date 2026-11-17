@@ -17,6 +17,7 @@ class TaskGroupTest {
 	@Test
 	@DisplayName("모든 작업이 끝나면 true이고, 작업이 쓴 결과가 호출자에게 보인다(happens-before)")
 	void runsAllAndPublishesResults() throws InterruptedException {
+		// @start region="latch"
 		int[] results = new int[8];
 		List<Runnable> tasks = new ArrayList<>();
 		for (int i = 0; i < results.length; i++) {
@@ -28,6 +29,7 @@ class TaskGroupTest {
 
 		assertThat(completed).isTrue();
 		assertThat(results).containsExactly(0, 1, 4, 9, 16, 25, 36, 49);
+		// @end
 	}
 
 	@Test
