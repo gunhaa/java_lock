@@ -15,6 +15,30 @@
  * <li>해제할 때 {@code state}를 되돌리고, 큐의 다음 노드를 {@code unpark}로 깨운다.</li>
  * </ul>
  *
+ * <h2>공통 공식: state CAS + 큐 + park</h2>
+ * 이 패키지와 {@code java.util.concurrent}의 동기화 도구는 모두 같은 공식으로 만들어져 있다.
+ * <b>"{@code state}를 CAS로 바꿔 보고, 실패하면 큐에 넣고 park한다. 해제할 때 큐에서 꺼내 unpark한다."</b>
+ * 도구마다 다른 것은 {@code state}의 의미뿐이다.
+ * <ul>
+ * <li>{@code ReentrantLock}: 보유(재진입) 횟수. 0이면 비어 있다.</li>
+ * <li>{@code ReentrantReadWriteLock}: 상위 16비트는 읽기 보유 수, 하위 16비트는 쓰기 재진입 수.</li>
+ * <li>{@code Semaphore}: 남은 허가 수.</li>
+ * <li>{@code CountDownLatch}: 남은 카운트. 0이 되면 기다리던 스레드가 모두 통과한다.</li>
+ * </ul>
+ * {@code StampedLock}은 AQS를 쓰지 않지만 같은 공식을 자체 {@code state}와 큐로 직접 구현했다.
+ * {@code Condition}은 이 위에 조건 큐를 하나 더 얹은 것이다. 층으로 보면 이렇다.
+ * <pre>{@code
+ * ConditionBoundedBuffer   await/signal + buffer condition (while)
+ *         |
+ * ConditionObject (AQS)    condition queue + release/reacquire lock + wake timing
+ *         |
+ * AQS                      state CAS + sync queue
+ *         |
+ * LockSupport              park/unpark (one permit per thread)   <- OneShotSignal
+ *         |
+ * HotSpot Parker           futex (Linux) / WaitForSingleObject (Windows)
+ * }</pre>
+ *
  * <h2>OS 관점</h2>
  * {@code LockSupport.park} → {@code Unsafe.park} → HotSpot의 스레드별 {@code Parker} 객체 →
  * Linux {@code pthread_cond_wait}/{@code pthread_cond_timedwait}(futex), Windows {@code WaitForSingleObject}.

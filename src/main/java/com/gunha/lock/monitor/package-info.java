@@ -114,6 +114,17 @@
  * <li><b>{@code _WaitSet}</b>: {@code wait()}을 부른 스레드({@code WAITING}). 모니터를 <b>완전히</b> 놓고(재진입 횟수는 저장) 여기서 잠든다.
  *     입장 대기줄과 달리, 모니터가 비어도 스스로 나오지 못하고 누군가 notify해야 나온다.</li>
  * </ul>
+ * 입장 대기줄과 {@code _WaitSet}에서 잠드는 것은 둘 다 {@link java.util.concurrent.locks.LockSupport#park()}와 같은 <b>커널 대기</b>다.
+ * 스레드가 CPU를 쓰지 않고 OS 스케줄러의 실행 대기열에서 빠진다. 거쳐 가는 HotSpot 객체만 다르다.
+ * <pre>{@code
+ * Object.wait() / monitor entry -> ParkEvent (per thread) --+
+ *                                                           +--> Linux:   pthread_cond_wait -> futex
+ * LockSupport.park() (AQS)      -> Parker    (per thread) --+     Windows: WaitForSingleObject (event)
+ * }</pre>
+ * 그래서 {@code wait()}로 잠든 스레드와 {@code park()}로 잠든 스레드는 OS가 보기에 같은 상태이고, 깨어날 때 컨텍스트 스위치 비용도 같다.
+ * 차이는 대기 줄을 누가 관리하느냐(JVM C++ 코드 vs 자바 코드의 AQS)다. 스레드 상태도 여기서 갈린다.
+ * {@code _WaitSet}에서 기다리는 스레드는 {@code park()}와 똑같이 {@code WAITING}이고,
+ * 모니터 입장 대기줄에서 기다리는 스레드만 JVM이 따로 {@code BLOCKED}로 표시한다.
  * 이동 규칙은 다음과 같다.
  * <ol>
  * <li><b>진입</b>: {@code _owner}가 비어 있으면 CAS로 바로 차지한다. 아니면 잠깐 스핀한 뒤 입장 대기줄에 들어가 잠든다.</li>
@@ -154,6 +165,11 @@
  * 자바 플랫폼 스레드는 OS 스레드와 1:1이다. 모니터에서 잠드는 스레드는 HotSpot의 {@code ParkEvent}를 통해
  * Linux에서는 {@code pthread_cond_wait}(내부적으로 futex 시스템 콜), Windows에서는 이벤트 객체에 대한
  * {@code WaitForSingleObject}로 커널에 들어가 스케줄러 대기열에서 빠진다. 깨어날 때 컨텍스트 스위치 비용이 든다.
+ *
+ * <h2>locks 패키지와 같은 공식</h2>
+ * 모니터도 {@code java.util.concurrent.locks}의 도구들과 같은 공식("{@code state} CAS + 큐 + park")으로 동작한다.
+ * mark word CAS가 {@code state} CAS, 입장 대기줄과 {@code _WaitSet}이 큐, {@code ParkEvent}가 park/unpark에 해당한다.
+ * 차이는 이것을 JVM 안에 C++로 구현했느냐, 자바 라이브러리(AQS)로 구현했느냐다.
  *
  * <h2>예제</h2>
  * <ul>

@@ -5,6 +5,8 @@ import java.util.concurrent.locks.LockSupport;
 /**
  * {@link LockSupport#park}/{@link LockSupport#unpark}만으로 만든 일회용 신호. 대기자는 한 스레드라고 가정한다.
  * AQS와 이 패키지의 모든 락이 스레드를 재우고 깨울 때 결국 이 두 메서드를 쓴다.
+ * 패키지 설명의 계층 그림에서 가장 아래층이다. 위층의 도구들은 여기에 {@code state} CAS, 대기 큐, 락 연동을 얹은 것이고,
+ * 이 클래스는 그것들 없이 park/unpark를 직접 쓴다(그래서 대기자를 한 스레드로 가정한다).
  *
  * <h2>permit 모델</h2>
  * 스레드마다 permit이 0개 또는 1개 있다(세마포어처럼 쌓이지 않는다).
