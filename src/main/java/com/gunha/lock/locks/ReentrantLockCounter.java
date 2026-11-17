@@ -27,9 +27,9 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <h2>synchronized로는 안 되는 것</h2>
  * <ul>
- * <li>{@link #tryIncrement(long, TimeUnit)}: 정해진 시간만 기다리고 포기. 기다리는 동안 {@code TIMED_WAITING}.
+ * <li>{@link ReentrantLock#tryLock(long, TimeUnit)}: 정해진 시간만 기다리고 포기. 기다리는 동안 {@code TIMED_WAITING}.
  *     교착 회피나 응답 시간 상한이 필요할 때 쓴다.</li>
- * <li>{@link #incrementInterruptibly()}: 기다리는 중에 인터럽트되면 {@link InterruptedException}으로 빠져나온다.
+ * <li>{@link ReentrantLock#lockInterruptibly()}: 기다리는 중에 인터럽트되면 {@link InterruptedException}으로 빠져나온다.
  *     {@code synchronized} 진입 대기와 {@code lock()}은 인터럽트로 깨울 수 없다.</li>
  * </ul>
  *

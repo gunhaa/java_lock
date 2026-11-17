@@ -10,7 +10,7 @@ import java.util.concurrent.locks.StampedLock;
  * 락을 얻으면 그 시점의 상태 값인 stamp를 돌려받고, 해제할 때 그 stamp를 넘긴다.
  * 쓰기 락을 얻고 풀 때마다 버전이 바뀌므로, stamp가 그대로인지만 보면 "그사이 누가 썼는가"를 알 수 있다.
  *
- * <h2>낙관적 읽기 ({@link #distanceFromOrigin()})</h2>
+ * <h2>낙관적 읽기 ({@code StampedLock.tryOptimisticRead})</h2>
  * <ol>
  * <li>{@code tryOptimisticRead()}: 쓰기 락이 없으면 현재 stamp를 돌려준다. <b>공유 메모리에 아무것도 쓰지 않는다.</b>
  *     CAS도 없다.</li>

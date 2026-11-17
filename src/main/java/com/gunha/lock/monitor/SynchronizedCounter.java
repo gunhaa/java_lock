@@ -5,9 +5,9 @@ package com.gunha.lock.monitor;
  *
  * <h2>바이트코드</h2>
  * <ul>
- * <li>메서드에 붙이면({@link #increment()}) 메서드 플래그에 {@code ACC_SYNCHRONIZED}가 켜진다.
+ * <li>메서드에 붙이면({@code synchronized void m()}) 메서드 플래그에 {@code ACC_SYNCHRONIZED}가 켜진다.
  *     호출할 때 JVM이 {@code this}(static 메서드면 {@code Class} 객체)의 모니터를 잡는다.</li>
- * <li>블록으로 쓰면({@link #runWhileLocked(Runnable)}) javac가 {@code monitorenter}/{@code monitorexit}을 넣는다.
+ * <li>블록으로 쓰면({@code synchronized (obj) { ... }}) javac가 {@code monitorenter}/{@code monitorexit}을 넣는다.
  *     예외로 빠져나가는 경로용 {@code monitorexit}도 예외 테이블에 하나 더 만든다.
  *     그래서 {@code synchronized}는 락 해제를 잊을 수 없다.</li>
  * </ul>
@@ -20,7 +20,7 @@ package com.gunha.lock.monitor;
  *
  * <h2>재진입</h2>
  * 이미 락을 가진 스레드가 같은 모니터에 다시 들어가면 막히지 않고 재진입 횟수만 늘어난다.
- * {@link #incrementTwice()}가 안에서 {@link #increment()}를 불러도 교착되지 않는 이유다.
+ * {@code synchronized} 메서드 안에서 같은 객체의 다른 {@code synchronized} 메서드를 불러도 교착되지 않는 이유다.
  *
  * <h2>메모리 가시성</h2>
  * 모니터 해제는 같은 모니터의 이후 획득보다 happens-before다. 그래서 {@code count}에 volatile이 없어도

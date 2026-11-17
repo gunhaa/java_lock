@@ -25,8 +25,9 @@ import java.util.concurrent.atomic.LongAdder;
  * </ul>
  *
  * <h2>incrementAndGet은 루프가 아니다</h2>
- * {@link #incrementIntrinsic()}의 {@code incrementAndGet()}은 x86에서 JIT이 {@code lock xadd}(fetch-and-add)
- * 명령 하나로 바꾼다. 실패가 없으므로 재시도 루프도 없다. 직접 쓴 {@link #incrementWithCasLoop()}과 비교해 볼 것.
+ * {@link AtomicInteger#incrementAndGet()}은 x86에서 JIT이 {@code lock xadd}(fetch-and-add)
+ * 명령 하나로 바꾼다. 실패가 없으므로 재시도 루프도 없다.
+ * {@link AtomicInteger#compareAndSet(int, int)}이 실패할 때마다 다시 읽고 부르는 루프와 비교해 볼 것.
  *
  * <h2>테스트로 확인</h2>
  * CAS가 실패하면 다시 읽고 재시도하므로 값이 유실되지 않는다.

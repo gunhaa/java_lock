@@ -38,7 +38,7 @@ import java.util.Deque;
  * {@code while}로 조건을 확인해, 조건이 맞는 쪽은 진행하고 아닌 쪽은 다시 {@code wait()}한다. 필요한 쪽이 반드시 깨어나므로 안전하다.
  * 대신 깨어날 필요가 없는 스레드까지 깨워 컨텍스트 스위치가 늘어난다(thundering herd).
  * {@code notifyAll()}은 깨우기를 반복하지 않는다. 한 번에 모두 입장 대기줄로 옮길 뿐이고, 줄에 선 스레드가 하나씩 들어와
- * 조건이 안 맞으면 다시 {@code wait()}으로 돌아간다. 돌아간 스레드는 다음 {@code put}/{@code take}가 부르는 {@code notifyAll()}을 기다린다.
+ * 조건이 안 맞으면 다시 {@code wait()}으로 돌아간다. 돌아간 스레드는 다른 스레드가 다음에 부르는 {@code notifyAll()}을 기다린다.
  * <p>
  * 조건 큐를 나눠 필요한 쪽만 깨우는 해법이 {@link com.gunha.lock.locks.ConditionBoundedBuffer}다.
  *
