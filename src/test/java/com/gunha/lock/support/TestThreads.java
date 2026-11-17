@@ -70,10 +70,15 @@ public final class TestThreads {
 	/**
 	 * threads개 작업을 동시에 출발시켜 각자 action을 iterations번 실행하고, 모두 끝날 때까지 기다린다.
 	 * <p>
+	 * {@code execute()}는 작업을 넘기기만 하고 돌아오므로, 메인은 worker가 출발선에 왔는지 알 수 없다.
+	 * 그래서 worker가 {@code ready}로 도착을 알리고, 메인은 전원이 도착한 뒤에 {@code startGate}를 연다.
+	 * {@code startGate}만 있으면 문을 연 뒤에 도착한 worker는 기다리지 않고 따로 출발한다.
+	 * <p>
 	 * 작업에서 난 예외는 모두 모아 하나의 {@link AssertionError}로 던지고(suppressed), 시간 안에 끝나지 않아도 실패시킨다.
 	 * 정상적으로 돌아오면 {@code countDown()} → {@code await()}의 happens-before 덕분에 작업 안의 모든 쓰기가 호출자에게 보인다.
 	 */
 	public static void runConcurrently(int threads, int iterations, Runnable action) throws InterruptedException {
+		CountDownLatch ready = new CountDownLatch(threads);
 		CountDownLatch startGate = new CountDownLatch(1);
 		CountDownLatch done = new CountDownLatch(threads);
 		Queue<Throwable> errors = new ConcurrentLinkedQueue<>();
@@ -85,6 +90,7 @@ public final class TestThreads {
 			for (int i = 0; i < threads; i++) {
 				pool.execute(() -> {
 					try {
+						ready.countDown();
 						awaitLatch(startGate);
 						for (int j = 0; j < iterations; j++) {
 							action.run();
@@ -98,6 +104,9 @@ public final class TestThreads {
 						done.countDown();
 					}
 				});
+			}
+			if (!ready.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
+				throw new AssertionError("작업 스레드가 출발선에 모이지 않음 (남은 작업 " + ready.getCount() + "개)");
 			}
 			startGate.countDown();
 

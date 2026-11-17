@@ -97,7 +97,7 @@ Started<Void> contender = TestThreads.start("contender", () -> {
 TestThreads.awaitState(contender.thread(), Thread.State.WAITING); // 지금 락을 기다리는 중임을 확인
 ```
 
-여러 스레드로 같은 동작을 반복하는 테스트는 `TestThreads.runConcurrently`가 맡습니다. `ExecutorService`에 작업을 넣고 `CountDownLatch` 하나로 동시에 출발시킨 뒤, 다른 `CountDownLatch`로 모든 작업의 완료를 기다립니다. 작업에서 난 예외는 모두 모아 테스트 실패로 보고하고, 시간 초과도 실패로 처리합니다. `countDown()` → `await()`의 happens-before 덕분에 작업 결과가 테스트 스레드에 보입니다.
+여러 스레드로 같은 동작을 반복하는 테스트는 `TestThreads.runConcurrently`가 맡습니다. `ExecutorService`에 작업을 넣고 `CountDownLatch` 세 개를 씁니다. `ready`로 모든 작업이 출발선에 왔는지 확인하고, `startGate`로 동시에 출발시킨 뒤, `done`으로 모든 작업의 완료를 기다립니다. 작업에서 난 예외는 모두 모아 테스트 실패로 보고하고, 시간 초과도 실패로 처리합니다. `countDown()` → `await()`의 happens-before 덕분에 작업 결과가 테스트 스레드에 보입니다.
 
 모든 테스트 클래스에는 `@Timeout`이 붙어 있어서, 교착이 생기면 멈추지 않고 실패로 끝납니다.
 
