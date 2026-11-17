@@ -24,7 +24,8 @@
  *
  * <h2>모니터 대비 얻는 것</h2>
  * <ul>
- * <li>시간 제한 획득({@code tryLock(timeout)}), 인터럽트 가능한 획득({@code lockInterruptibly})</li>
+ * <li>시간 제한 획득({@code tryLock(timeout)}), 인터럽트 가능한 획득({@code lockInterruptibly}).
+ *     인터럽트로 빠져나올 수 있는 것은 <b>획득을 기다리는 동안</b>뿐이다. 이미 얻은 락은 인터럽트로 풀리지 않는다.</li>
  * <li>공정성 선택, 한 락에 조건 큐 여러 개({@code Condition})</li>
  * <li>읽기/쓰기 분리({@code ReadWriteLock}), 낙관적 읽기({@code StampedLock})</li>
  * <li>Java 21 가상 스레드에서 park하면 캐리어 스레드를 놓아준다(pinning 없음).</li>
