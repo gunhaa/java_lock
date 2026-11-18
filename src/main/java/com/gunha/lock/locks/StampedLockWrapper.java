@@ -3,7 +3,8 @@ package com.gunha.lock.locks;
 import java.util.concurrent.locks.StampedLock;
 
 /**
- * {@link StampedLock}으로 보호한 2차원 좌표. JDK 공식 문서의 예제를 바탕으로 했다.
+ * {@link StampedLock}을 감싼 래퍼. 2차원 좌표 (x, y)를 보호하며, JDK 공식 문서의 {@code Point} 예제를 바탕으로 했다.
+ * 메서드 이름 끝에 그 메서드가 쓰는 {@code StampedLock} 모드(쓰기 락, 낙관적 읽기, 쓰기 락 변환)를 붙였다.
  *
  * <h2>stamp란</h2>
  * {@code StampedLock}의 {@code state}는 64비트 long이다. 쓰기 락 비트, 버전, 독자 수가 들어 있다.
@@ -19,7 +20,7 @@ import java.util.concurrent.locks.StampedLock;
  *     그대로면 복사한 값은 일관된 스냅샷이다.</li>
  * <li>실패하면 진짜 읽기 락으로 다시 읽는다.</li>
  * </ol>
- * CPU 관점: 읽기 락({@link ReadWriteCache})은 독자마다 {@code state}에 CAS로 써서 캐시 라인을 독점(Modified)하려 한다.
+ * CPU 관점: 읽기 락({@link ReentrantReadWriteLockWrapper})은 독자마다 {@code state}에 CAS로 써서 캐시 라인을 독점(Modified)하려 한다.
  * 낙관적 읽기는 읽기만 하므로 여러 코어가 캐시 라인을 공유(Shared) 상태로 함께 가질 수 있다.
  * 쓰기가 드물고 읽기가 짧고 잦을 때 가장 빠르다.
  *
@@ -33,9 +34,9 @@ import java.util.concurrent.locks.StampedLock;
  *
  * <h2>테스트로 확인</h2>
  * 낙관적 읽기 도중 쓰기가 끼어들면 {@code validate}가 실패해 읽기 락으로 다시 읽는다.
- * {@snippet file="com/gunha/lock/locks/StampedPointTest.java" region="optimistic"}
+ * {@snippet file="com/gunha/lock/locks/StampedLockWrapperTest.java" region="optimistic"}
  */
-public class StampedPoint {
+public class StampedLockWrapper {
 
 	private final StampedLock sl = new StampedLock();
 
@@ -43,7 +44,8 @@ public class StampedPoint {
 
 	private double y;
 
-	public void move(double deltaX, double deltaY) {
+	/** {@link StampedLock#writeLock()}을 얻고 좌표를 옮긴다. */
+	public void moveWithWriteLock(double deltaX, double deltaY) {
 		long stamp = sl.writeLock();
 		try {
 			x += deltaX;
@@ -54,13 +56,14 @@ public class StampedPoint {
 		}
 	}
 
-	public double distanceFromOrigin() {
-		return distanceFromOrigin(() -> {
+	/** {@link StampedLock#tryOptimisticRead()}로 원점까지의 거리를 읽는다. {@code validate}에 실패하면 읽기 락으로 다시 읽는다. */
+	public double distanceWithOptimisticRead() {
+		return distanceWithOptimisticRead(() -> {
 		});
 	}
 
 	/** 낙관적으로 읽은 직후 afterOptimisticRead를 실행한다. 테스트에서 그사이 쓰기를 끼워 넣는 데 쓴다. */
-	double distanceFromOrigin(Runnable afterOptimisticRead) {
+	double distanceWithOptimisticRead(Runnable afterOptimisticRead) {
 		long stamp = sl.tryOptimisticRead();
 		double currentX = x;
 		double currentY = y;
@@ -79,7 +82,7 @@ public class StampedPoint {
 	}
 
 	/** 원점에 있을 때만 이동한다. 읽기 락을 쓰기 락으로 바꾸는 {@code tryConvertToWriteLock}을 보여 준다. */
-	public boolean moveIfAtOrigin(double newX, double newY) {
+	public boolean moveIfAtOriginWithConvertToWriteLock(double newX, double newY) {
 		long stamp = sl.readLock();
 		try {
 			while (x == 0.0 && y == 0.0) {

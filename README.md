@@ -28,7 +28,7 @@ Spring Boot는 프로젝트 뼈대로만 씁니다. 예제와 테스트는 순�
 ./gradlew test --tests 'com.gunha.lock.monitor.*'
 
 # 클래스 하나만
-./gradlew test --tests 'com.gunha.lock.locks.StampedPointTest'
+./gradlew test --tests 'com.gunha.lock.locks.StampedLockWrapperTest'
 ```
 
 Windows에서는 `gradlew.bat`을 사용합니다. 결과 보고서는 `build/reports/tests/test/index.html`에 생깁니다.
@@ -36,6 +36,8 @@ Windows에서는 `gradlew.bat`을 사용합니다. 결과 보고서는 `build/re
 ## 구성
 
 패키지마다 `package-info.java`에 그 패키지의 개요가 있습니다.
+
+예제 클래스는 Java API 하나를 감싼 래퍼이고, 이름은 **감싼 API 이름 + `Wrapper`** 입니다(예: `Semaphore` → `SemaphoreWrapper`). 메서드 이름도 감싼 API의 메서드 이름을 따릅니다. 감싸는 API가 없는 반례 `UnsafeCounter`만 예외입니다.
 
 ```
 src/main/java/com/gunha/lock
@@ -51,28 +53,28 @@ src/main/java/com/gunha/lock
 | 예제 | 다루는 내용 |
 |---|---|
 | `UnsafeCounter` | 락이 없을 때의 갱신 유실. `volatile`은 가시성만 주고 원자성은 주지 않음 |
-| `SynchronizedCounter` | `monitorenter`/`monitorexit`, 락 팽창, 재진입, 대기자가 `BLOCKED`가 되는 것 |
-| `MonitorBoundedBuffer` | `wait/notifyAll` 생산자-소비자, `while`로 조건을 다시 확인하는 이유, WaitSet이 하나뿐인 한계 |
+| `SynchronizedWrapper` | `monitorenter`/`monitorexit`, 락 팽창, 재진입, 대기자가 `BLOCKED`가 되는 것 |
+| `WaitNotifyWrapper` | `wait/notifyAll` 생산자-소비자, `while`로 조건을 다시 확인하는 이유, WaitSet이 하나뿐인 한계 |
 
 ### locks: 명시적 락
 
 | 예제 | 다루는 내용 |
 |---|---|
-| `ReentrantLockCounter` | AQS `state`와 CAS, 공정·비공정, `tryLock(timeout)`, `lockInterruptibly`, 대기자가 `WAITING`이 되는 것 |
-| `ConditionBoundedBuffer` | 조건 큐 분리(`notFull`/`notEmpty`)로 `signal` 하나면 충분해지는 구조 |
-| `ReadWriteCache` | `state` 상위·하위 16비트 분할, 공유 읽기, 다운그레이드는 되고 업그레이드는 안 되는 이유 |
-| `StampedPoint` | 낙관적 읽기와 `validate`, 재진입 불가, 소유자 없음, `tryConvertToWriteLock` |
-| `OneShotSignal` | 모든 락의 바닥인 `LockSupport.park/unpark`, permit 모델 |
+| `ReentrantLockWrapper` | AQS `state`와 CAS, 공정·비공정, `tryLock(timeout)`, `lockInterruptibly`, 대기자가 `WAITING`이 되는 것 |
+| `ConditionWrapper` | 조건 큐 분리(`notFull`/`notEmpty`)로 `signal` 하나면 충분해지는 구조 |
+| `ReentrantReadWriteLockWrapper` | `state` 상위·하위 16비트 분할, 공유 읽기, 다운그레이드는 되고 업그레이드는 안 되는 이유 |
+| `StampedLockWrapper` | 낙관적 읽기와 `validate`, 재진입 불가, 소유자 없음, `tryConvertToWriteLock` |
+| `LockSupportWrapper` | 모든 락의 바닥인 `LockSupport.park/unpark`, permit 모델 |
 
 ### concurrent: 동기화 도구와 원자 변수
 
 | 예제 | 다루는 내용 |
 |---|---|
-| `SemaphoreLimiter` | 동시 실행 수 제한, AQS 공유 모드, 소유자 없음 |
-| `TaskGroup` | `CountDownLatch`로 시작 신호·완료 대기, 일회용, happens-before |
-| `PhaseRunner` | `CyclicBarrier` 라운드, barrier action, 깨진 배리어 |
-| `CasCounter` | CAS 재시도 루프와 `incrementAndGet`(`lock xadd`) 비교 |
-| `HitCounter` | `LongAdder`의 셀 분산과 false sharing 방지 |
+| `SemaphoreWrapper` | 동시 실행 수 제한, AQS 공유 모드, 소유자 없음 |
+| `CountDownLatchWrapper` | `CountDownLatch`로 시작 신호·완료 대기, 일회용, happens-before |
+| `CyclicBarrierWrapper` | `CyclicBarrier` 라운드, barrier action, 깨진 배리어 |
+| `AtomicIntegerWrapper` | CAS 재시도 루프와 `incrementAndGet`(`lock xadd`) 비교 |
+| `LongAdderWrapper` | `LongAdder`의 셀 분산과 false sharing 방지 |
 
 ## 한눈에 비교
 
@@ -93,7 +95,7 @@ src/main/java/com/gunha/lock
 
 ```java
 Started<Void> contender = TestThreads.start("contender", () -> {
-    counter.increment();
+    wrapper.incrementWithLock(); // ReentrantLockWrapper
     return null;
 });
 TestThreads.awaitState(contender.thread(), Thread.State.WAITING); // 지금 락을 기다리는 중임을 확인
@@ -105,6 +107,6 @@ TestThreads.awaitState(contender.thread(), Thread.State.WAITING); // 지금 락�
 
 ## 직접 확인해 볼 것
 
-- **바이트코드:** `./gradlew compileJava` 후 `javap -c -v build/classes/java/main/com/gunha/lock/monitor/SynchronizedCounter.class`를 실행하면 `monitorenter`/`monitorexit`과 `ACC_SYNCHRONIZED`가 보입니다.
+- **바이트코드:** `./gradlew compileJava` 후 `javap -c -v build/classes/java/main/com/gunha/lock/monitor/SynchronizedWrapper.class`를 실행하면 `monitorenter`/`monitorexit`과 `ACC_SYNCHRONIZED`가 보입니다.
 - **스레드 덤프:** 테스트 실행 중 `jstack <pid>`로 `waiting to lock <...>`(모니터)와 `parking to wait for <...>`(AQS)의 차이를 볼 수 있습니다.
-- **CAS 경합:** `CasCounterTest` 출력에서 CAS 실패 후 재시도 횟수를 볼 수 있습니다.
+- **CAS 경합:** `AtomicIntegerWrapperTest` 출력에서 CAS 실패 후 재시도 횟수를 볼 수 있습니다.

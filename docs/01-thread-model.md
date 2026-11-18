@@ -60,9 +60,9 @@ stateDiagram-v2
 |---|---|---|
 | `NEW` | 만들었지만 `start()` 전 | |
 | `RUNNABLE` | 실행 중이거나, 코어를 기다리는 중. **I/O로 막힌 스레드도 여기에 포함**됨 | |
-| `BLOCKED` | `synchronized` 진입을 기다림 (모니터 락 전용 상태) | `SynchronizedCounterTest` |
-| `WAITING` | 시간 제한 없이 기다림: `wait()`, `join()`, `LockSupport.park()`, 그리고 이것을 쓰는 `Lock.lock()`, `Condition.await()`, `Semaphore.acquire()` 등 | `ReentrantLockCounterTest`, `MonitorBoundedBufferTest` 등 |
-| `TIMED_WAITING` | 시간 제한이 있는 대기: `sleep()`, `wait(ms)`, `tryLock(timeout)`, `parkNanos()` | `ReentrantLockCounterTest` |
+| `BLOCKED` | `synchronized` 진입을 기다림 (모니터 락 전용 상태) | `SynchronizedWrapperTest` |
+| `WAITING` | 시간 제한 없이 기다림: `wait()`, `join()`, `LockSupport.park()`, 그리고 이것을 쓰는 `Lock.lock()`, `Condition.await()`, `Semaphore.acquire()` 등 | `ReentrantLockWrapperTest`, `WaitNotifyWrapperTest` 등 |
+| `TIMED_WAITING` | 시간 제한이 있는 대기: `sleep()`, `wait(ms)`, `tryLock(timeout)`, `parkNanos()` | `ReentrantLockWrapperTest` |
 | `TERMINATED` | `run()`이 끝남 | |
 
 - **`BLOCKED`와 `WAITING`을 구분하는 기준은 대기를 누가 관리하느냐입니다.** `synchronized`는 JVM의 C++ 코드(`ObjectMonitor`)가 직접 관리해서 `BLOCKED`입니다. `ReentrantLock`은 자바 코드(AQS)가 `park()`로 재우기 때문에 `WAITING`입니다.
@@ -73,9 +73,9 @@ stateDiagram-v2
 인터럽트는 강제 종료가 아니라 **"그만해 달라"는 협조 요청**입니다. 스레드마다 boolean 플래그가 하나 있습니다.
 
 - `t.interrupt()`: t의 플래그를 켭니다. t가 `sleep()`, `wait()`, `join()`, `lockInterruptibly()`, `await()` 같은 **인터럽트 가능한 대기** 중이면 깨워서 `InterruptedException`을 던지게 합니다. 이때 플래그는 다시 꺼집니다.
-- **인터럽트로 깨울 수 없는 대기**도 있습니다. `synchronized` 진입 대기와 `Lock.lock()`이 그렇습니다. `lockInterruptibly()`가 따로 있는 이유입니다(`ReentrantLockCounter`).
+- **인터럽트로 깨울 수 없는 대기**도 있습니다. `synchronized` 진입 대기와 `Lock.lock()`이 그렇습니다. `lockInterruptibly()`가 따로 있는 이유입니다(`ReentrantLockWrapper`).
 - `LockSupport.park()`는 인터럽트를 받으면 돌아오지만 예외는 던지지 않습니다. 호출한 쪽이 플래그를 직접 확인해야 합니다.
-- `InterruptedException`을 잡았는데 바로 처리할 수 없다면 `Thread.currentThread().interrupt()`로 플래그를 다시 켜 둡니다. 그래야 호출한 쪽이 인터럽트 사실을 알 수 있습니다. `TaskGroup`, `PhaseRunner`에서 이렇게 합니다.
+- `InterruptedException`을 잡았는데 바로 처리할 수 없다면 `Thread.currentThread().interrupt()`로 플래그를 다시 켜 둡니다. 그래야 호출한 쪽이 인터럽트 사실을 알 수 있습니다. `CountDownLatchWrapper`, `CyclicBarrierWrapper`에서 이렇게 합니다.
 
 ## 1.6 데몬 스레드
 

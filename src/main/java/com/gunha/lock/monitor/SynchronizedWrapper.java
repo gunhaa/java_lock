@@ -1,7 +1,7 @@
 package com.gunha.lock.monitor;
 
 /**
- * {@code synchronized}로 보호한 카운터. 모니터 락의 상호 배제·재진입·대기 상태를 보여 준다.
+ * {@code synchronized}(모니터 락)를 감싼 래퍼. 카운터 하나를 보호하며, 모니터 락의 상호 배제·재진입·대기 상태를 보여 준다.
  *
  * <h2>바이트코드</h2>
  * <ul>
@@ -12,7 +12,7 @@ package com.gunha.lock.monitor;
  *     그래서 {@code synchronized}는 락 해제를 잊을 수 없다.</li>
  * </ul>
  * 확인: {@code ./gradlew compileJava} 후
- * {@code javap -c -v build/classes/java/main/com/gunha/lock/monitor/SynchronizedCounter.class}
+ * {@code javap -c -v build/classes/java/main/com/gunha/lock/monitor/SynchronizedWrapper.class}
  *
  * <h2>락 상태</h2>
  * 락 상태는 객체 헤더의 mark word에 기록된다. 비트 배치, 스택 락에서 팽창으로 넘어가는 과정, JDK 버전별 변화는
@@ -30,13 +30,13 @@ package com.gunha.lock.monitor;
  * 가상 스레드가 {@code synchronized} 안에서 블로킹(I/O, sleep, 다른 락 대기)되면, 그 가상 스레드를 실행하던
  * 캐리어(OS) 스레드도 함께 묶인다(pinning). 모니터 소유권이 OS 스레드 기준으로 기록되기 때문이다.
  * {@code -Djdk.tracePinnedThreads=full}로 확인할 수 있고, JDK 24(JEP 491)에서 해결되었다.
- * 21에서 가상 스레드를 쓴다면 {@link com.gunha.lock.locks.ReentrantLockCounter} 쪽이 안전하다.
+ * 21에서 가상 스레드를 쓴다면 {@link com.gunha.lock.locks.ReentrantLockWrapper} 쪽이 안전하다.
  *
  * <h2>테스트로 확인</h2>
  * 모니터를 기다리는 스레드는 {@code BLOCKED}가 된다.
- * {@snippet file="com/gunha/lock/monitor/SynchronizedCounterTest.java" region="blocked"}
+ * {@snippet file="com/gunha/lock/monitor/SynchronizedWrapperTest.java" region="blocked"}
  */
-public class SynchronizedCounter {
+public class SynchronizedWrapper {
 
 	private int count;
 
@@ -50,8 +50,8 @@ public class SynchronizedCounter {
 		increment();
 	}
 
-	/** 현재 스레드가 이 객체의 모니터를 가지고 있는지. */
-	public boolean isHeldByCurrentThread() {
+	/** {@link Thread#holdsLock(Object)}에 위임한다. 현재 스레드가 이 객체의 모니터를 가지고 있는지. */
+	public boolean holdsLock() {
 		return Thread.holdsLock(this);
 	}
 

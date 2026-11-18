@@ -6,8 +6,9 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * {@link Condition} 두 개로 만든 크기 제한 버퍼.
- * {@link com.gunha.lock.monitor.MonitorBoundedBuffer}와 같은 일을 하므로 나란히 비교해 볼 것.
+ * {@link Condition}을 감싼 래퍼. 한 {@link ReentrantLock}에서 만든 {@code Condition} 두 개({@code notFull}, {@code notEmpty})로
+ * 크기 제한 버퍼(생산자-소비자)를 만든다.
+ * {@link com.gunha.lock.monitor.WaitNotifyWrapper}와 같은 일을 하므로 나란히 비교해 볼 것.
  *
  * <h2>큐 구조 (AQS ConditionObject, JDK 21)</h2>
  * 락 하나에 큐가 두 종류 있다. 락을 기다리는 <b>sync queue</b> 하나와, {@code newCondition()}마다 하나씩 생기는 <b>condition queue</b>다.
@@ -78,9 +79,9 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <h2>테스트로 확인</h2>
  * 소비자는 {@code notEmpty} 큐에서만 기다리고, {@code notFull} 큐는 비어 있다.
- * {@snippet file="com/gunha/lock/locks/ConditionBoundedBufferTest.java" region="condition-queue"}
+ * {@snippet file="com/gunha/lock/locks/ConditionWrapperTest.java" region="condition-queue"}
  */
-public class ConditionBoundedBuffer<E> {
+public class ConditionWrapper<E> {
 
 	private final Deque<E> items = new ArrayDeque<>();
 
@@ -92,7 +93,7 @@ public class ConditionBoundedBuffer<E> {
 
 	private final Condition notEmpty = lock.newCondition();
 
-	public ConditionBoundedBuffer(int capacity) {
+	public ConditionWrapper(int capacity) {
 		if (capacity <= 0) {
 			throw new IllegalArgumentException("capacity는 1 이상이어야 합니다: " + capacity);
 		}
@@ -128,8 +129,8 @@ public class ConditionBoundedBuffer<E> {
 		}
 	}
 
-	/** 빈 버퍼 때문에 기다리는 소비자가 있는지. ({@code hasWaiters}도 락을 가진 채 불러야 한다) */
-	public boolean hasWaitingTakers() {
+	/** {@code notEmpty}에서 기다리는 스레드(빈 버퍼 때문에 기다리는 소비자)가 있는지. ({@code hasWaiters}도 락을 가진 채 불러야 한다) */
+	public boolean hasNotEmptyWaiters() {
 		lock.lock();
 		try {
 			return lock.hasWaiters(notEmpty);
@@ -139,8 +140,8 @@ public class ConditionBoundedBuffer<E> {
 		}
 	}
 
-	/** 가득 찬 버퍼 때문에 기다리는 생산자가 있는지. */
-	public boolean hasWaitingPutters() {
+	/** {@code notFull}에서 기다리는 스레드(가득 찬 버퍼 때문에 기다리는 생산자)가 있는지. */
+	public boolean hasNotFullWaiters() {
 		lock.lock();
 		try {
 			return lock.hasWaiters(notFull);

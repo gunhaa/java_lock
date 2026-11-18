@@ -4,7 +4,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Semaphore;
 
 /**
- * {@link Semaphore}로 동시에 실행되는 작업 수를 제한한다. (예: 외부 API 동시 호출 수, 커넥션 수 제한)
+ * {@link Semaphore}를 감싼 래퍼. 허가(permit) 수로 동시에 실행되는 작업 수를 제한한다. (예: 외부 API 동시 호출 수, 커넥션 수 제한)
  *
  * <h2>동작 (AQS 공유 모드)</h2>
  * <ul>
@@ -25,18 +25,19 @@ import java.util.concurrent.Semaphore;
  *
  * <h2>테스트로 확인</h2>
  * 허가 3개가 모두 쓰이면 네 번째 호출은 {@code WAITING}으로 기다린다.
- * {@snippet file="com/gunha/lock/concurrent/SemaphoreLimiterTest.java" region="limit"}
+ * {@snippet file="com/gunha/lock/concurrent/SemaphoreWrapperTest.java" region="limit"}
  */
-public class SemaphoreLimiter {
+public class SemaphoreWrapper {
 
 	private final Semaphore semaphore;
 
-	public SemaphoreLimiter(int maxConcurrent) {
-		this.semaphore = new Semaphore(maxConcurrent);
+	/** @param permits 처음 허가 수. 동시에 실행될 수 있는 작업 수다. */
+	public SemaphoreWrapper(int permits) {
+		this.semaphore = new Semaphore(permits);
 	}
 
-	/** 허가를 얻은 뒤 task를 실행하고, 끝나면(예외가 나도) 허가를 돌려준다. */
-	public <T> T call(Callable<T> task) throws Exception {
+	/** {@code acquire()}로 허가를 얻은 뒤 task를 실행하고, 끝나면(예외가 나도) {@code release()}로 허가를 돌려준다. */
+	public <T> T callWithPermit(Callable<T> task) throws Exception {
 		semaphore.acquire();
 		try {
 			return task.call();
@@ -46,6 +47,7 @@ public class SemaphoreLimiter {
 		}
 	}
 
+	/** {@link Semaphore#availablePermits()}에 위임한다. */
 	public int availablePermits() {
 		return semaphore.availablePermits();
 	}

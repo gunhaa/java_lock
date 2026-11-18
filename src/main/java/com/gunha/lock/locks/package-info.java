@@ -28,13 +28,13 @@
  * {@code StampedLock}은 AQS를 쓰지 않지만 같은 공식을 자체 {@code state}와 큐로 직접 구현했다.
  * {@code Condition}은 이 위에 조건 큐를 하나 더 얹은 것이다. 층으로 보면 이렇다.
  * <pre>{@code
- * ConditionBoundedBuffer   await/signal + buffer condition (while)
+ * ConditionWrapper         await/signal + buffer condition (while)
  *         |
  * ConditionObject (AQS)    condition queue + release/reacquire lock + wake timing
  *         |
  * AQS                      state CAS + sync queue
  *         |
- * LockSupport              park/unpark (one permit per thread)   <- OneShotSignal
+ * LockSupport              park/unpark (one permit per thread)   <- LockSupportWrapper
  *         |
  * HotSpot Parker           futex (Linux) / WaitForSingleObject (Windows)
  * }</pre>
@@ -57,12 +57,13 @@
  * 대가: {@code unlock()}을 반드시 {@code finally}에서 직접 불러야 한다.
  *
  * <h2>예제</h2>
+ * 예제마다 API 하나를 감싼 래퍼이고, 이름은 감싼 API 이름 뒤에 {@code Wrapper}를 붙였다.
  * <ul>
- * <li>{@link com.gunha.lock.locks.ReentrantLockCounter}: {@code ReentrantLock}의 재진입·tryLock·인터럽트·공정성</li>
- * <li>{@link com.gunha.lock.locks.ConditionBoundedBuffer}: {@code Condition} 두 개로 만든 생산자-소비자</li>
- * <li>{@link com.gunha.lock.locks.ReadWriteCache}: {@code ReentrantReadWriteLock}의 공유 읽기·배타 쓰기·다운그레이드</li>
- * <li>{@link com.gunha.lock.locks.StampedPoint}: {@code StampedLock}의 낙관적 읽기</li>
- * <li>{@link com.gunha.lock.locks.OneShotSignal}: 모든 락의 바닥에 있는 {@code LockSupport.park/unpark}</li>
+ * <li>{@link com.gunha.lock.locks.ReentrantLockWrapper}: {@code ReentrantLock}의 재진입·tryLock·인터럽트·공정성</li>
+ * <li>{@link com.gunha.lock.locks.ConditionWrapper}: {@code Condition} 두 개로 만든 생산자-소비자</li>
+ * <li>{@link com.gunha.lock.locks.ReentrantReadWriteLockWrapper}: {@code ReentrantReadWriteLock}의 공유 읽기·배타 쓰기·다운그레이드</li>
+ * <li>{@link com.gunha.lock.locks.StampedLockWrapper}: {@code StampedLock}의 낙관적 읽기</li>
+ * <li>{@link com.gunha.lock.locks.LockSupportWrapper}: 모든 락의 바닥에 있는 {@code LockSupport.park/unpark}</li>
  * </ul>
  */
 package com.gunha.lock.locks;

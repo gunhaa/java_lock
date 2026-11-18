@@ -7,8 +7,8 @@
 | 문서 | 내용 | 먼저 읽으면 좋은 예제 |
 |---|---|---|
 | [1. 자바 스레드 모델](01-thread-model.md) | 플랫폼·가상 스레드, OS 스레드와의 관계, 컨텍스트 스위치, 스레드 상태, 인터럽트, 데몬, `ExecutorService` | 모든 테스트 (`TestThreads`) |
-| [2. 자바 메모리 모델 (JMM)](02-java-memory-model.md) | 재정렬과 가시성 문제, happens-before 규칙, 데이터 경쟁, 원자성, volatile, final과 안전한 발행, 메모리 배리어 | `monitor.UnsafeCounter`, `monitor.SynchronizedCounter` |
-| [3. 하드웨어와 OS](03-hardware-and-os.md) | 메모리 계층, 캐시 라인과 MESI, 스토어 버퍼, 배리어, 원자 명령, 스핀과 블로킹, futex | `concurrent.CasCounter`, `concurrent.HitCounter` |
+| [2. 자바 메모리 모델 (JMM)](02-java-memory-model.md) | 재정렬과 가시성 문제, happens-before 규칙, 데이터 경쟁, 원자성, volatile, final과 안전한 발행, 메모리 배리어 | `monitor.UnsafeCounter`, `monitor.SynchronizedWrapper` |
+| [3. 하드웨어와 OS](03-hardware-and-os.md) | 메모리 계층, 캐시 라인과 MESI, 스토어 버퍼, 배리어, 원자 명령, 스핀과 블로킹, futex | `concurrent.AtomicIntegerWrapper`, `concurrent.LongAdderWrapper` |
 
 ## 한 장 요약
 

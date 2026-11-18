@@ -13,18 +13,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 @Timeout(30)
-class SemaphoreLimiterTest {
+class SemaphoreWrapperTest {
 
 	@Test
 	@DisplayName("허가 수만큼만 동시에 실행되고, 넘친 호출은 WAITING으로 기다린다")
 	void limitsConcurrency() throws Exception {
 		// @start region="limit"
-		SemaphoreLimiter limiter = new SemaphoreLimiter(3);
+		SemaphoreWrapper wrapper = new SemaphoreWrapper(3);
 		CountDownLatch entered = new CountDownLatch(3);
 		CountDownLatch release = new CountDownLatch(1);
 		List<Started<String>> running = new ArrayList<>();
 		for (int i = 0; i < 3; i++) {
-			running.add(TestThreads.start("running-" + i, () -> limiter.call(() -> {
+			running.add(TestThreads.start("running-" + i, () -> wrapper.callWithPermit(() -> {
 				entered.countDown();
 				TestThreads.awaitLatch(release);
 				return "done";
@@ -32,27 +32,27 @@ class SemaphoreLimiterTest {
 		}
 		entered.await();
 
-		Started<String> fourth = TestThreads.start("fourth", () -> limiter.call(() -> "fourth"));
+		Started<String> fourth = TestThreads.start("fourth", () -> wrapper.callWithPermit(() -> "fourth"));
 
 		TestThreads.awaitState(fourth.thread(), Thread.State.WAITING);
-		assertThat(limiter.availablePermits()).isZero();
+		assertThat(wrapper.availablePermits()).isZero();
 
 		release.countDown();
 		for (Started<String> task : running) {
 			assertThat(task.join()).isEqualTo("done");
 		}
 		assertThat(fourth.join()).isEqualTo("fourth");
-		assertThat(limiter.availablePermits()).isEqualTo(3);
+		assertThat(wrapper.availablePermits()).isEqualTo(3);
 		// @end
 	}
 
 	@Test
 	@DisplayName("작업이 예외를 던져도 허가는 돌려받는다")
 	void releasesOnException() {
-		SemaphoreLimiter limiter = new SemaphoreLimiter(1);
+		SemaphoreWrapper wrapper = new SemaphoreWrapper(1);
 
 		try {
-			limiter.call(() -> {
+			wrapper.callWithPermit(() -> {
 				throw new IllegalStateException("실패");
 			});
 		}
@@ -60,7 +60,7 @@ class SemaphoreLimiterTest {
 			// 예외 자체는 관심 없다.
 		}
 
-		assertThat(limiter.availablePermits()).isEqualTo(1);
+		assertThat(wrapper.availablePermits()).isEqualTo(1);
 	}
 
 	@Test
