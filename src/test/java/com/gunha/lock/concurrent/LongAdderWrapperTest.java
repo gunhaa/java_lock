@@ -8,17 +8,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 @Timeout(30)
-class HitCounterTest {
+class LongAdderWrapperTest {
 
 	@Test
 	@DisplayName("여러 셀에 나눠 더해도, 갱신이 멈춘 뒤의 합계는 정확하다")
-	void totalIsExactAfterUpdatesStop() throws InterruptedException {
+	void sumIsExactAfterUpdatesStop() throws InterruptedException {
 		// @start region="adder"
-		HitCounter counter = new HitCounter();
+		LongAdderWrapper wrapper = new LongAdderWrapper();
 
-		TestThreads.runConcurrently(8, 100_000, counter::hit);
+		TestThreads.runConcurrently(8, 100_000, wrapper::increment);
 
-		assertThat(counter.total()).isEqualTo(8L * 100_000);
+		assertThat(wrapper.sum()).isEqualTo(8L * 100_000);
 		// @end
 	}
 

@@ -14,18 +14,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 @Timeout(30)
-class ReadWriteCacheTest {
+class ReentrantReadWriteLockWrapperTest {
 
 	@Test
 	@DisplayName("읽기 락은 여러 스레드가 동시에 가진다")
 	void readersShare() throws Exception {
-		ReadWriteCache<String, String> cache = new ReadWriteCache<>();
+		ReentrantReadWriteLockWrapper<String, String> wrapper = new ReentrantReadWriteLockWrapper<>();
 		CountDownLatch entered = new CountDownLatch(2);
 		CountDownLatch release = new CountDownLatch(1);
 		List<Started<Void>> readers = new ArrayList<>();
 		for (int i = 0; i < 2; i++) {
 			readers.add(TestThreads.start("reader-" + i, () -> {
-				cache.readWhile(() -> {
+				wrapper.runWhileReadLocked(() -> {
 					entered.countDown();
 					TestThreads.awaitLatch(release);
 				});
@@ -34,23 +34,23 @@ class ReadWriteCacheTest {
 		}
 
 		entered.await();
-		assertThat(cache.readLockCount()).isEqualTo(2);
+		assertThat(wrapper.getReadLockCount()).isEqualTo(2);
 
 		release.countDown();
 		for (Started<Void> reader : readers) {
 			reader.join();
 		}
-		assertThat(cache.readLockCount()).isZero();
+		assertThat(wrapper.getReadLockCount()).isZero();
 	}
 
 	@Test
 	@DisplayName("읽기 락이 남아 있으면 쓰기는 WAITING으로 기다린다")
 	void writerWaitsForReaders() throws Exception {
-		ReadWriteCache<String, String> cache = new ReadWriteCache<>();
+		ReentrantReadWriteLockWrapper<String, String> wrapper = new ReentrantReadWriteLockWrapper<>();
 		CountDownLatch entered = new CountDownLatch(1);
 		CountDownLatch release = new CountDownLatch(1);
 		Started<Void> reader = TestThreads.start("reader", () -> {
-			cache.readWhile(() -> {
+			wrapper.runWhileReadLocked(() -> {
 				entered.countDown();
 				TestThreads.awaitLatch(release);
 			});
@@ -59,29 +59,29 @@ class ReadWriteCacheTest {
 		entered.await();
 
 		Started<Void> writer = TestThreads.start("writer", () -> {
-			cache.put("k", "v");
+			wrapper.put("k", "v");
 			return null;
 		});
 
 		TestThreads.awaitState(writer.thread(), Thread.State.WAITING);
-		assertThat(cache.isWriteLocked()).isFalse();
+		assertThat(wrapper.isWriteLocked()).isFalse();
 
 		release.countDown();
 		reader.join();
 		writer.join();
-		assertThat(cache.get("k")).isEqualTo("v");
+		assertThat(wrapper.get("k")).isEqualTo("v");
 	}
 
 	@Test
 	@DisplayName("getOrLoad는 여러 스레드가 동시에 불러도 한 번만 로드한다")
 	void loadsOnce() throws InterruptedException {
-		ReadWriteCache<String, Integer> cache = new ReadWriteCache<>();
+		ReentrantReadWriteLockWrapper<String, Integer> wrapper = new ReentrantReadWriteLockWrapper<>();
 		AtomicInteger loads = new AtomicInteger();
 
-		TestThreads.runConcurrently(8, 1_000, () -> cache.getOrLoad("k", key -> loads.incrementAndGet()));
+		TestThreads.runConcurrently(8, 1_000, () -> wrapper.getOrLoad("k", key -> loads.incrementAndGet()));
 
 		assertThat(loads.get()).isEqualTo(1);
-		assertThat(cache.get("k")).isEqualTo(1);
+		assertThat(wrapper.get("k")).isEqualTo(1);
 	}
 
 	@Test

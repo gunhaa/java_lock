@@ -15,7 +15,7 @@
  * </ul>
  *
  * <h2>객체 헤더 (64비트 HotSpot, JDK 21 기본 설정)</h2>
- * 압축 포인터를 쓰는 기본 설정(힙 32GB 미만)에서 {@link com.gunha.lock.monitor.SynchronizedCounter} 인스턴스는 이렇게 놓인다.
+ * 압축 포인터를 쓰는 기본 설정(힙 32GB 미만)에서 {@link com.gunha.lock.monitor.SynchronizedWrapper} 인스턴스는 이렇게 놓인다.
  * <pre>{@code
  * offset  0                         8             12            16
  *         +-------------------------+-------------+-------------+
@@ -172,10 +172,12 @@
  * 차이는 이것을 JVM 안에 C++로 구현했느냐, 자바 라이브러리(AQS)로 구현했느냐다.
  *
  * <h2>예제</h2>
+ * 래퍼 두 개는 감싼 언어 기능({@code synchronized}, {@code Object.wait/notify}) 이름 뒤에 {@code Wrapper}를 붙였다.
+ * {@code UnsafeCounter}는 감싸는 API가 없는 반례라서 래퍼가 아니다.
  * <ul>
  * <li>{@link com.gunha.lock.monitor.UnsafeCounter}: 락이 없을 때 생기는 갱신 유실(volatile로도 못 막음)</li>
- * <li>{@link com.gunha.lock.monitor.SynchronizedCounter}: {@code synchronized}의 상호 배제, 재진입, BLOCKED 상태</li>
- * <li>{@link com.gunha.lock.monitor.MonitorBoundedBuffer}: {@code wait/notifyAll}로 만든 생산자-소비자</li>
+ * <li>{@link com.gunha.lock.monitor.SynchronizedWrapper}: {@code synchronized}의 상호 배제, 재진입, BLOCKED 상태</li>
+ * <li>{@link com.gunha.lock.monitor.WaitNotifyWrapper}: {@code wait/notifyAll}로 만든 생산자-소비자</li>
  * </ul>
  */
 package com.gunha.lock.monitor;

@@ -4,7 +4,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * {@link ReentrantLock}으로 보호한 카운터.
+ * {@link ReentrantLock}을 감싼 래퍼. 획득 방식({@code lock}, {@code tryLock}, {@code lockInterruptibly})마다 메서드를 두고,
+ * 각각 락으로 보호한 카운터를 하나 늘린다.
  *
  * <h2>AQS 위에서의 동작</h2>
  * <ul>
@@ -49,21 +50,22 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <h2>테스트로 확인</h2>
  * 같은 경합이라도 AQS는 {@code park}로 재우므로 {@code WAITING}이다.
- * {@snippet file="com/gunha/lock/locks/ReentrantLockCounterTest.java" region="waiting"}
+ * {@snippet file="com/gunha/lock/locks/ReentrantLockWrapperTest.java" region="waiting"}
  * {@code lockInterruptibly}로 기다리는 스레드는 인터럽트로 포기시킬 수 있다.
- * {@snippet file="com/gunha/lock/locks/ReentrantLockCounterTest.java" region="interruptibly"}
+ * {@snippet file="com/gunha/lock/locks/ReentrantLockWrapperTest.java" region="interruptibly"}
  */
-public class ReentrantLockCounter {
+public class ReentrantLockWrapper {
 
 	private final ReentrantLock lock;
 
 	private int count;
 
-	public ReentrantLockCounter(boolean fair) {
+	public ReentrantLockWrapper(boolean fair) {
 		this.lock = new ReentrantLock(fair);
 	}
 
-	public void increment() {
+	/** {@link ReentrantLock#lock()}으로 락을 얻고 증가시킨다. 얻을 때까지 기다리며, 인터럽트로 깨울 수 없다. */
+	public void incrementWithLock() {
 		lock.lock();
 		try {
 			count++;
@@ -73,8 +75,8 @@ public class ReentrantLockCounter {
 		}
 	}
 
-	/** timeout 안에 락을 얻으면 증가시키고 true, 못 얻으면 false. */
-	public boolean tryIncrement(long timeout, TimeUnit unit) throws InterruptedException {
+	/** {@link ReentrantLock#tryLock(long, TimeUnit)}으로 timeout 안에 락을 얻으면 증가시키고 true, 못 얻으면 false. */
+	public boolean incrementWithTryLock(long timeout, TimeUnit unit) throws InterruptedException {
 		if (!lock.tryLock(timeout, unit)) {
 			return false;
 		}
@@ -87,8 +89,8 @@ public class ReentrantLockCounter {
 		}
 	}
 
-	/** 락을 기다리다 인터럽트되면 증가시키지 않고 {@link InterruptedException}을 던진다. */
-	public void incrementInterruptibly() throws InterruptedException {
+	/** {@link ReentrantLock#lockInterruptibly()}로 락을 얻고 증가시킨다. 기다리다 인터럽트되면 증가시키지 않고 {@link InterruptedException}을 던진다. */
+	public void incrementWithLockInterruptibly() throws InterruptedException {
 		lock.lockInterruptibly();
 		try {
 			count++;
@@ -98,8 +100,8 @@ public class ReentrantLockCounter {
 		}
 	}
 
-	/** 락을 쥔 채 다시 락을 잡고, 안쪽에서 본 보유 횟수를 돌려준다(재진입 확인용). */
-	public int nestedHoldCount() {
+	/** 락을 쥔 채 다시 락을 잡고, 안쪽에서 본 {@link ReentrantLock#getHoldCount()}를 돌려준다(재진입 확인용). */
+	public int getHoldCountWhenNested() {
 		lock.lock();
 		try {
 			return innerHoldCount();
@@ -130,6 +132,7 @@ public class ReentrantLockCounter {
 		}
 	}
 
+	/** {@link ReentrantLock#isFair()}에 위임한다. */
 	public boolean isFair() {
 		return lock.isFair();
 	}

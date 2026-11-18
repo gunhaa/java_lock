@@ -9,26 +9,26 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 @Timeout(30)
-class StampedPointTest {
+class StampedLockWrapperTest {
 
 	@Test
 	@DisplayName("쓰기가 끼어들지 않으면 낙관적 읽기만으로 값을 얻는다")
 	void optimisticReadWithoutWriter() {
-		StampedPoint point = new StampedPoint();
-		point.move(3, 4);
+		StampedLockWrapper wrapper = new StampedLockWrapper();
+		wrapper.moveWithWriteLock(3, 4);
 
-		assertThat(point.distanceFromOrigin()).isEqualTo(5.0);
+		assertThat(wrapper.distanceWithOptimisticRead()).isEqualTo(5.0);
 	}
 
 	@Test
 	@DisplayName("낙관적 읽기 도중 쓰기가 끼어들면 validate가 실패해 읽기 락으로 다시 읽는다")
 	void optimisticReadFallsBackWhenWritten() {
 		// @start region="optimistic"
-		StampedPoint point = new StampedPoint();
+		StampedLockWrapper wrapper = new StampedLockWrapper();
 
 		// 낙관적으로 (0, 0)을 읽은 직후 (3, 4)로 이동시킨다.
 		// 검증 없이 그대로 썼다면 0.0, 검증에 실패해 다시 읽었으므로 5.0이다.
-		double distance = point.distanceFromOrigin(() -> point.move(3, 4));
+		double distance = wrapper.distanceWithOptimisticRead(() -> wrapper.moveWithWriteLock(3, 4));
 
 		assertThat(distance).isEqualTo(5.0);
 		// @end
@@ -75,12 +75,12 @@ class StampedPointTest {
 
 	@Test
 	@DisplayName("tryConvertToWriteLock으로 읽기 락을 쓰기 락으로 바꿔 원점일 때만 이동한다")
-	void moveIfAtOrigin() {
-		StampedPoint point = new StampedPoint();
+	void moveIfAtOriginWithConvertToWriteLock() {
+		StampedLockWrapper wrapper = new StampedLockWrapper();
 
-		assertThat(point.moveIfAtOrigin(3, 4)).isTrue();
-		assertThat(point.moveIfAtOrigin(6, 8)).isFalse();
-		assertThat(point.distanceFromOrigin()).isEqualTo(5.0);
+		assertThat(wrapper.moveIfAtOriginWithConvertToWriteLock(3, 4)).isTrue();
+		assertThat(wrapper.moveIfAtOriginWithConvertToWriteLock(6, 8)).isFalse();
+		assertThat(wrapper.distanceWithOptimisticRead()).isEqualTo(5.0);
 	}
 
 }

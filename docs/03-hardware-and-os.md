@@ -30,8 +30,8 @@
 
 여기서 동시성 비용 두 가지가 나옵니다.
 
-- **캐시 라인 핑퐁:** 여러 코어가 같은 변수에 번갈아 쓰면, 그 라인이 코어 사이를 계속 오갑니다. 락의 `state` 필드, `AtomicInteger`의 값이 경합이 심할 때 느려지는 이유입니다(`CasCounter`).
-- **거짓 공유(false sharing):** 서로 다른 변수라도 같은 캐시 라인에 있으면, 한쪽 쓰기가 다른 쪽 라인까지 무효화합니다. `LongAdder`는 셀마다 `@Contended`로 패딩을 둬서 이를 피합니다(`HitCounter`). JDK 내부가 아닌 코드에서 `@Contended`를 쓰려면 `-XX:-RestrictContended`가 필요합니다.
+- **캐시 라인 핑퐁:** 여러 코어가 같은 변수에 번갈아 쓰면, 그 라인이 코어 사이를 계속 오갑니다. 락의 `state` 필드, `AtomicInteger`의 값이 경합이 심할 때 느려지는 이유입니다(`AtomicIntegerWrapper`).
+- **거짓 공유(false sharing):** 서로 다른 변수라도 같은 캐시 라인에 있으면, 한쪽 쓰기가 다른 쪽 라인까지 무효화합니다. `LongAdder`는 셀마다 `@Contended`로 패딩을 둬서 이를 피합니다(`LongAdderWrapper`). JDK 내부가 아닌 코드에서 `@Contended`를 쓰려면 `-XX:-RestrictContended`가 필요합니다.
 
 **일관성(coherence)과 메모리 모델은 다른 문제입니다.** MESI는 "한 주소에 대해 모든 코어가 결국 같은 값을 본다"는 것만 보장합니다. 여러 주소에 대한 쓰기가 **어떤 순서로** 보이는지는 다음 절의 스토어 버퍼 때문에 따로 다뤄야 합니다.
 

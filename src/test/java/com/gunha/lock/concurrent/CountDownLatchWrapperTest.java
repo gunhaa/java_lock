@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 @Timeout(30)
-class TaskGroupTest {
+class CountDownLatchWrapperTest {
 
 	@Test
 	@DisplayName("모든 작업이 끝나면 true이고, 작업이 쓴 결과가 호출자에게 보인다(happens-before)")
@@ -25,7 +25,7 @@ class TaskGroupTest {
 			tasks.add(() -> results[index] = index * index);
 		}
 
-		boolean completed = TaskGroup.runAll(tasks, 5, TimeUnit.SECONDS);
+		boolean completed = CountDownLatchWrapper.runAllAndAwait(tasks, 5, TimeUnit.SECONDS);
 
 		assertThat(completed).isTrue();
 		assertThat(results).containsExactly(0, 1, 4, 9, 16, 25, 36, 49);
@@ -39,7 +39,7 @@ class TaskGroupTest {
 		List<Runnable> tasks = List.of(() -> {
 		}, () -> TestThreads.awaitLatch(neverUntilCleanup));
 
-		boolean completed = TaskGroup.runAll(tasks, 50, TimeUnit.MILLISECONDS);
+		boolean completed = CountDownLatchWrapper.runAllAndAwait(tasks, 50, TimeUnit.MILLISECONDS);
 
 		assertThat(completed).isFalse();
 		neverUntilCleanup.countDown();

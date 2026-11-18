@@ -7,7 +7,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 
 /**
- * {@link ReentrantReadWriteLock}으로 보호한 캐시. 읽기는 여럿이 동시에, 쓰기는 혼자서.
+ * {@link ReentrantReadWriteLock}을 감싼 래퍼. 맵 하나를 보호해서, 읽기는 여럿이 동시에, 쓰기는 혼자서 한다.
  *
  * <h2>state 하나에 두 락을 담는다</h2>
  * AQS의 32비트 {@code state}를 반으로 나눈다. 상위 16비트는 읽기 락 보유 수(공유 모드),
@@ -29,13 +29,13 @@ import java.util.function.Function;
  * 읽기 락도 결국 공유 {@code state}에 CAS로 <b>쓰는</b> 동작이다. 코어가 많고 읽기가 매우 짧으면, 모든 독자가 같은
  * 캐시 라인을 번갈아 소유하려 하는 캐시 라인 핑퐁이 생겨 기대만큼 빨라지지 않는다.
  * 읽기 구간이 충분히 길거나(조회·계산), 쓰기가 드물 때 효과가 크다.
- * 아주 짧은 읽기가 많다면 쓰기를 전혀 하지 않는 {@link StampedPoint}의 낙관적 읽기가 대안이다.
+ * 아주 짧은 읽기가 많다면 쓰기를 전혀 하지 않는 {@link StampedLockWrapper}의 낙관적 읽기가 대안이다.
  *
  * <h2>테스트로 확인</h2>
  * 쓰기 → 읽기 다운그레이드는 되고, 읽기 → 쓰기 업그레이드는 안 된다.
- * {@snippet file="com/gunha/lock/locks/ReadWriteCacheTest.java" region="downgrade"}
+ * {@snippet file="com/gunha/lock/locks/ReentrantReadWriteLockWrapperTest.java" region="downgrade"}
  */
-public class ReadWriteCache<K, V> {
+public class ReentrantReadWriteLockWrapper<K, V> {
 
 	private final Map<K, V> map = new HashMap<>();
 
@@ -105,7 +105,7 @@ public class ReadWriteCache<K, V> {
 	}
 
 	/** 읽기 락을 쥔 채 action을 실행한다. */
-	public void readWhile(Runnable action) {
+	public void runWhileReadLocked(Runnable action) {
 		readLock.lock();
 		try {
 			action.run();
@@ -115,11 +115,12 @@ public class ReadWriteCache<K, V> {
 		}
 	}
 
-	/** 지금 잡혀 있는 읽기 락 수(모든 스레드 합계). */
-	public int readLockCount() {
+	/** {@link ReentrantReadWriteLock#getReadLockCount()}에 위임한다. 지금 잡혀 있는 읽기 락 수(모든 스레드 합계). */
+	public int getReadLockCount() {
 		return rwLock.getReadLockCount();
 	}
 
+	/** {@link ReentrantReadWriteLock#isWriteLocked()}에 위임한다. */
 	public boolean isWriteLocked() {
 		return rwLock.isWriteLocked();
 	}

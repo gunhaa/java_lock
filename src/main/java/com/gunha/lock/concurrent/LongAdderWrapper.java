@@ -3,7 +3,7 @@ package com.gunha.lock.concurrent;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
- * {@link LongAdder}로 만든 조회수 카운터. 여러 스레드가 매우 자주 더하고, 합계는 가끔 읽는 경우에 맞는다.
+ * {@link LongAdder}를 감싼 래퍼. 조회수처럼 여러 스레드가 매우 자주 더하고, 합계는 가끔 읽는 경우에 맞는다.
  *
  * <h2>구조 (Striped64)</h2>
  * <ul>
@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.LongAdder;
  * <li>각 {@code Cell}은 {@code @Contended}로 앞뒤에 패딩을 둬서 서로 다른 캐시 라인에 놓인다. 다른 변수인데
  *     같은 캐시 라인에 있어 서로 무효화시키는 <b>거짓 공유(false sharing)</b>를 막는다.</li>
  * </ul>
- * 결과적으로 코어마다 다른 캐시 라인에 쓰게 되어, {@link CasCounter}가 겪는 캐시 라인 핑퐁과 CAS 재시도가 거의 사라진다.
+ * 결과적으로 코어마다 다른 캐시 라인에 쓰게 되어, {@code AtomicInteger}({@link AtomicIntegerWrapper})가 겪는 캐시 라인 핑퐁과 CAS 재시도가 거의 사라진다.
  *
  * <h2>대가</h2>
  * <ul>
@@ -25,18 +25,20 @@ import java.util.concurrent.atomic.LongAdder;
  *
  * <h2>테스트로 확인</h2>
  * 여러 셀에 나눠 더해도, 갱신이 멈춘 뒤의 합계는 정확하다.
- * {@snippet file="com/gunha/lock/concurrent/HitCounterTest.java" region="adder"}
+ * {@snippet file="com/gunha/lock/concurrent/LongAdderWrapperTest.java" region="adder"}
  */
-public class HitCounter {
+public class LongAdderWrapper {
 
-	private final LongAdder hits = new LongAdder();
+	private final LongAdder adder = new LongAdder();
 
-	public void hit() {
-		hits.increment();
+	/** {@link LongAdder#increment()}에 위임한다. */
+	public void increment() {
+		adder.increment();
 	}
 
-	public long total() {
-		return hits.sum();
+	/** {@link LongAdder#sum()}에 위임한다. 갱신이 멈춘 뒤에 읽어야 정확하다. */
+	public long sum() {
+		return adder.sum();
 	}
 
 }

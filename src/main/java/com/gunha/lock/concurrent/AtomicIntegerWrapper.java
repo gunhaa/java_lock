@@ -4,7 +4,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
- * {@link AtomicInteger}로 만든 락 없는(lock-free) 카운터. CAS 재시도 루프를 직접 써 보고 횟수를 센다.
+ * {@link AtomicInteger}를 감싼 래퍼. {@code compareAndSet}으로 CAS 재시도 루프를 직접 써 보고 실패 횟수를 세어,
+ * 한 명령으로 끝나는 {@code incrementAndGet}과 비교한다. 락 없이(lock-free) 동작한다.
  *
  * <h2>CAS (compare-and-swap)</h2>
  * "메모리 값이 기대값과 같으면 새 값으로 바꾸고 true, 아니면 아무것도 안 하고 false"를 CPU 명령 하나로 원자적으로 한다.
@@ -19,7 +20,7 @@ import java.util.concurrent.atomic.LongAdder;
  * <ul>
  * <li>스레드가 잠들지 않는다. park도 OS 호출도 컨텍스트 스위치도 없다. 그래서 짧은 갱신에서는 락보다 빠르다.</li>
  * <li>대신 경합이 심하면 CAS 실패와 재시도가 늘고, 코어들이 같은 캐시 라인을 서로 뺏어 오느라(캐시 라인 핑퐁) 느려진다.
- *     이 경우가 {@link HitCounter}({@link LongAdder})의 영역이다.</li>
+ *     이 경우가 {@link LongAdder}({@link LongAdderWrapper})의 영역이다.</li>
  * <li>변수 <b>하나</b>만 원자적으로 바꿀 수 있다. 여러 필드를 함께 바꿔야 하면 락이나 불변 객체 + {@code AtomicReference}를 쓴다.</li>
  * <li>ABA 문제: 값이 A → B → A로 바뀌면 CAS는 변화를 모른다. 필요하면 {@code AtomicStampedReference}로 버전을 붙인다.</li>
  * </ul>
@@ -31,27 +32,31 @@ import java.util.concurrent.atomic.LongAdder;
  *
  * <h2>테스트로 확인</h2>
  * CAS가 실패하면 다시 읽고 재시도하므로 값이 유실되지 않는다.
- * {@snippet file="com/gunha/lock/concurrent/CasCounterTest.java" region="cas-loop"}
+ * {@snippet file="com/gunha/lock/concurrent/AtomicIntegerWrapperTest.java" region="cas-loop"}
  */
-public class CasCounter {
+public class AtomicIntegerWrapper {
 
 	private final AtomicInteger value = new AtomicInteger();
 
-	private final LongAdder casFailures = new LongAdder();
+	private final LongAdder compareAndSetFailures = new LongAdder();
 
-	/** 읽고 → 계산하고 → CAS로 쓰기를 시도한다. 그사이 누가 바꿨으면 실패하므로 처음부터 다시 한다. */
-	public int incrementWithCasLoop() {
+	/**
+	 * {@code incrementAndGet}을 {@code compareAndSet} 재시도 루프로 직접 구현한다.
+	 * 읽고 → 계산하고 → CAS로 쓰기를 시도한다. 그사이 누가 바꿨으면 실패하므로 처음부터 다시 한다.
+	 */
+	public int incrementWithCompareAndSet() {
 		while (true) {
 			int current = value.get();
 			int next = current + 1;
 			if (value.compareAndSet(current, next)) {
 				return next;
 			}
-			casFailures.increment();
+			compareAndSetFailures.increment();
 		}
 	}
 
-	public int incrementIntrinsic() {
+	/** {@link AtomicInteger#incrementAndGet()}에 그대로 위임한다. 실패가 없어 재시도도 없다. */
+	public int incrementAndGet() {
 		return value.incrementAndGet();
 	}
 
@@ -59,9 +64,9 @@ public class CasCounter {
 		return value.get();
 	}
 
-	/** 지금까지 CAS가 실패해 다시 시도한 횟수. 경합 정도를 보여 준다. */
-	public long casFailures() {
-		return casFailures.sum();
+	/** {@link #incrementWithCompareAndSet()}에서 {@code compareAndSet}이 실패해 다시 시도한 횟수. 경합 정도를 보여 준다. */
+	public long compareAndSetFailures() {
+		return compareAndSetFailures.sum();
 	}
 
 }

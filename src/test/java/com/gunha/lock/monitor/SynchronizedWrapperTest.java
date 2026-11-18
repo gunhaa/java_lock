@@ -10,49 +10,49 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 @Timeout(30)
-class SynchronizedCounterTest {
+class SynchronizedWrapperTest {
 
 	@Test
 	@DisplayName("synchronized로 보호하면 동시 증가에도 값이 유실되지 않는다")
 	void mutualExclusion() throws InterruptedException {
-		SynchronizedCounter counter = new SynchronizedCounter();
+		SynchronizedWrapper wrapper = new SynchronizedWrapper();
 
-		TestThreads.runConcurrently(8, 100_000, counter::increment);
+		TestThreads.runConcurrently(8, 100_000, wrapper::increment);
 
-		assertThat(counter.get()).isEqualTo(8 * 100_000);
+		assertThat(wrapper.get()).isEqualTo(8 * 100_000);
 	}
 
 	@Test
 	@DisplayName("락을 가진 스레드는 같은 모니터에 다시 들어갈 수 있다(재진입)")
 	void reentrant() {
-		SynchronizedCounter counter = new SynchronizedCounter();
+		SynchronizedWrapper wrapper = new SynchronizedWrapper();
 
-		counter.incrementTwice();
+		wrapper.incrementTwice();
 
-		assertThat(counter.get()).isEqualTo(2);
+		assertThat(wrapper.get()).isEqualTo(2);
 	}
 
 	@Test
 	@DisplayName("블록 안에서는 모니터를 가지고 있고, 벗어나면 놓는다")
 	void holdsLock() {
-		SynchronizedCounter counter = new SynchronizedCounter();
+		SynchronizedWrapper wrapper = new SynchronizedWrapper();
 		boolean[] heldInside = new boolean[1];
 
-		counter.runWhileLocked(() -> heldInside[0] = counter.isHeldByCurrentThread());
+		wrapper.runWhileLocked(() -> heldInside[0] = wrapper.holdsLock());
 
 		assertThat(heldInside[0]).isTrue();
-		assertThat(counter.isHeldByCurrentThread()).isFalse();
+		assertThat(wrapper.holdsLock()).isFalse();
 	}
 
 	@Test
 	@DisplayName("모니터 진입을 기다리는 스레드는 BLOCKED 상태가 된다")
 	void contenderIsBlocked() throws Exception {
 		// @start region="blocked"
-		SynchronizedCounter counter = new SynchronizedCounter();
+		SynchronizedWrapper wrapper = new SynchronizedWrapper();
 		CountDownLatch entered = new CountDownLatch(1);
 		CountDownLatch release = new CountDownLatch(1);
 		Started<Void> holder = TestThreads.start("holder", () -> {
-			counter.runWhileLocked(() -> {
+			wrapper.runWhileLocked(() -> {
 				entered.countDown();
 				TestThreads.awaitLatch(release);
 			});
@@ -61,7 +61,7 @@ class SynchronizedCounterTest {
 		entered.await();
 
 		Started<Void> contender = TestThreads.start("contender", () -> {
-			counter.increment();
+			wrapper.increment();
 			return null;
 		});
 
@@ -71,7 +71,7 @@ class SynchronizedCounterTest {
 		release.countDown();
 		holder.join();
 		contender.join();
-		assertThat(counter.get()).isEqualTo(1);
+		assertThat(wrapper.get()).isEqualTo(1);
 		// @end
 	}
 

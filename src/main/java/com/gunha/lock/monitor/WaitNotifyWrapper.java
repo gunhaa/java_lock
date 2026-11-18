@@ -4,7 +4,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 /**
- * {@code wait/notifyAll}로 만든 크기 제한 버퍼(생산자-소비자).
+ * {@link Object#wait()}/{@link Object#notifyAll()}을 감싼 래퍼. 이 둘로 크기 제한 버퍼(생산자-소비자)를 만든다.
  *
  * {@code synchronized} 메서드와 {@code wait()}/{@code notifyAll()}은 모두 버퍼 객체({@code this})의 모니터를 쓴다.
  * 모니터의 {@code _owner}, 입장 대기줄, {@code _WaitSet} 구조와 스레드가 그 사이를 오가는 그림은 {@code package-info.java}(이 패키지 설명)에 있다.
@@ -40,7 +40,7 @@ import java.util.Deque;
  * {@code notifyAll()}은 깨우기를 반복하지 않는다. 한 번에 모두 입장 대기줄로 옮길 뿐이고, 줄에 선 스레드가 하나씩 들어와
  * 조건이 안 맞으면 다시 {@code wait()}으로 돌아간다. 돌아간 스레드는 다른 스레드가 다음에 부르는 {@code notifyAll()}을 기다린다.
  * <p>
- * 조건 큐를 나눠 필요한 쪽만 깨우는 해법이 {@link com.gunha.lock.locks.ConditionBoundedBuffer}다.
+ * 조건 큐를 나눠 필요한 쪽만 깨우는 해법이 {@link com.gunha.lock.locks.ConditionWrapper}다.
  *
  * <h2>신호는 저장되지 않는다</h2>
  * 기다리는 스레드가 없을 때 부른 {@code notify()}는 그냥 사라진다. 그래서 상태(여기서는 {@code items})를
@@ -48,15 +48,15 @@ import java.util.Deque;
  *
  * <h2>테스트로 확인</h2>
  * 소비자는 {@code wait()} 중에 모니터를 놓으므로 생산자가 들어와 값을 넣을 수 있다.
- * {@snippet file="com/gunha/lock/monitor/MonitorBoundedBufferTest.java" region="wait-notify"}
+ * {@snippet file="com/gunha/lock/monitor/WaitNotifyWrapperTest.java" region="wait-notify"}
  */
-public class MonitorBoundedBuffer<E> {
+public class WaitNotifyWrapper<E> {
 
 	private final Deque<E> items = new ArrayDeque<>();
 
 	private final int capacity;
 
-	public MonitorBoundedBuffer(int capacity) {
+	public WaitNotifyWrapper(int capacity) {
 		if (capacity <= 0) {
 			throw new IllegalArgumentException("capacity는 1 이상이어야 합니다: " + capacity);
 		}

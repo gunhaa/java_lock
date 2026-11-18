@@ -8,7 +8,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.function.IntBinaryOperator;
 
 /**
- * {@link CyclicBarrier}로 여러 작업자가 라운드마다 모두 모인 뒤 다음 라운드로 넘어가게 한다.
+ * {@link CyclicBarrier}를 감싼 래퍼. 여러 작업자가 라운드마다 {@code await}로 모두 모인 뒤 다음 라운드로 넘어가게 한다.
  * (예: 시뮬레이션의 한 스텝, 병렬 계산의 단계별 합치기)
  *
  * <h2>동작</h2>
@@ -31,20 +31,20 @@ import java.util.function.IntBinaryOperator;
  *
  * <h2>테스트로 확인</h2>
  * 라운드마다 모두 모인 뒤 합계를 계산하고, 배리어를 다시 쓴다.
- * {@snippet file="com/gunha/lock/concurrent/PhaseRunnerTest.java" region="rounds"}
+ * {@snippet file="com/gunha/lock/concurrent/CyclicBarrierWrapperTest.java" region="rounds"}
  */
-public final class PhaseRunner {
+public final class CyclicBarrierWrapper {
 
-	private PhaseRunner() {
+	private CyclicBarrierWrapper() {
 	}
 
 	/**
-	 * parties개 작업자가 rounds번 계산한다. 라운드마다 작업자 i가 {@code work(i, round)}를 계산하고,
-	 * 모두 모이면 그 라운드의 합을 기록한다.
+	 * parties개 작업자가 rounds번 계산한다. 라운드마다 작업자 i가 {@code work(i, round)}를 계산하고 {@code barrier.await()}한다.
+	 * 모두 모이면 barrier action이 그 라운드의 합을 기록한다.
 	 *
 	 * @return 라운드별 합계
 	 */
-	public static List<Integer> run(int parties, int rounds, IntBinaryOperator work) throws InterruptedException {
+	public static List<Integer> awaitEachRound(int parties, int rounds, IntBinaryOperator work) throws InterruptedException {
 		int[] contributions = new int[parties];
 		List<Integer> totals = new ArrayList<>();
 		CyclicBarrier barrier = new CyclicBarrier(parties, () -> totals.add(Arrays.stream(contributions).sum()));

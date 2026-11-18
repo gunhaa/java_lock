@@ -5,7 +5,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * {@link CountDownLatch}로 여러 작업을 동시에 출발시키고, 모두 끝날 때까지 기다린다.
+ * {@link CountDownLatch}를 감싼 래퍼. 래치로 여러 작업을 동시에 출발시키고, 모두 끝날 때까지 {@code await}한다.
  *
  * <h2>동작 (AQS 공유 모드)</h2>
  * <ul>
@@ -30,19 +30,19 @@ import java.util.concurrent.TimeUnit;
  *
  * <h2>테스트로 확인</h2>
  * {@code await}가 {@code true}를 돌려주면 작업이 쓴 결과가 호출자에게 보인다.
- * {@snippet file="com/gunha/lock/concurrent/TaskGroupTest.java" region="latch"}
+ * {@snippet file="com/gunha/lock/concurrent/CountDownLatchWrapperTest.java" region="latch"}
  */
-public final class TaskGroup {
+public final class CountDownLatchWrapper {
 
-	private TaskGroup() {
+	private CountDownLatchWrapper() {
 	}
 
 	/**
-	 * tasks를 각자 스레드에서 동시에 출발시키고 timeout까지 완료를 기다린다.
+	 * tasks를 각자 스레드에서 동시에 출발시키고 {@code done.await(timeout, unit)}으로 완료를 기다린다.
 	 *
-	 * @return 시간 안에 모두 끝났으면 true
+	 * @return 시간 안에 모두 끝났으면 true ({@link CountDownLatch#await(long, TimeUnit)}의 결과)
 	 */
-	public static boolean runAll(List<Runnable> tasks, long timeout, TimeUnit unit) throws InterruptedException {
+	public static boolean runAllAndAwait(List<Runnable> tasks, long timeout, TimeUnit unit) throws InterruptedException {
 		CountDownLatch ready = new CountDownLatch(tasks.size());
 		CountDownLatch startGate = new CountDownLatch(1);
 		CountDownLatch done = new CountDownLatch(tasks.size());

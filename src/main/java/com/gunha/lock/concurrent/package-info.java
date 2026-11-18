@@ -19,16 +19,17 @@
  * <li>{@code Semaphore}, {@code CountDownLatch}: 공식 그대로다. {@code state}가 각각 남은 허가 수, 남은 카운트를 뜻할 뿐이다.</li>
  * <li>{@code CyclicBarrier}: 공식을 직접 쓰지 않고, 공식으로 만든 {@code ReentrantLock + Condition}을 한 번 더 조합했다.</li>
  * <li>원자 변수: 공식에서 <b>큐와 park를 뺀 것</b>이다. CAS가 실패하면 잠들지 않고 바로 다시 시도한다.
- *     그래서 대기 상태가 없고, 경합이 심하면 CPU를 계속 쓴다({@link com.gunha.lock.concurrent.CasCounter}의 재시도 횟수).</li>
+ *     그래서 대기 상태가 없고, 경합이 심하면 CPU를 계속 쓴다({@link com.gunha.lock.concurrent.AtomicIntegerWrapper}의 재시도 횟수).</li>
  * </ul>
  *
  * <h2>예제</h2>
+ * 예제마다 API 하나를 감싼 래퍼이고, 이름은 감싼 API 이름 뒤에 {@code Wrapper}를 붙였다.
  * <ul>
- * <li>{@link com.gunha.lock.concurrent.SemaphoreLimiter}: 동시 실행 수 제한</li>
- * <li>{@link com.gunha.lock.concurrent.TaskGroup}: {@code CountDownLatch}로 시작 신호와 완료 대기</li>
- * <li>{@link com.gunha.lock.concurrent.PhaseRunner}: {@code CyclicBarrier}로 라운드마다 모두 모이기</li>
- * <li>{@link com.gunha.lock.concurrent.CasCounter}: {@code AtomicInteger}와 CAS 재시도 루프</li>
- * <li>{@link com.gunha.lock.concurrent.HitCounter}: 경합이 심한 카운터용 {@code LongAdder}</li>
+ * <li>{@link com.gunha.lock.concurrent.SemaphoreWrapper}: {@code Semaphore}로 동시 실행 수 제한</li>
+ * <li>{@link com.gunha.lock.concurrent.CountDownLatchWrapper}: {@code CountDownLatch}로 시작 신호와 완료 대기</li>
+ * <li>{@link com.gunha.lock.concurrent.CyclicBarrierWrapper}: {@code CyclicBarrier}로 라운드마다 모두 모이기</li>
+ * <li>{@link com.gunha.lock.concurrent.AtomicIntegerWrapper}: {@code AtomicInteger}와 CAS 재시도 루프</li>
+ * <li>{@link com.gunha.lock.concurrent.LongAdderWrapper}: 경합이 심한 카운터용 {@code LongAdder}</li>
  * </ul>
  */
 package com.gunha.lock.concurrent;

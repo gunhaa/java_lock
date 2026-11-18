@@ -32,8 +32,8 @@ package com.gunha.lock.monitor;
  * 8개 스레드가 10만 번씩 증가시키면 결과가 80만보다 작다.
  * {@snippet file="com/gunha/lock/monitor/UnsafeCounterTest.java" region="lost-update"}
  *
- * @see SynchronizedCounter
- * @see com.gunha.lock.concurrent.CasCounter
+ * @see SynchronizedWrapper
+ * @see com.gunha.lock.concurrent.AtomicIntegerWrapper
  */
 public class UnsafeCounter {
 

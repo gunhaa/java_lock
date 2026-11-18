@@ -3,7 +3,8 @@ package com.gunha.lock.locks;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * {@link LockSupport#park}/{@link LockSupport#unpark}만으로 만든 일회용 신호. 대기자는 한 스레드라고 가정한다.
+ * {@link LockSupport}를 감싼 래퍼. {@link LockSupport#park}/{@link LockSupport#unpark}만으로 일회용 신호를 만든다.
+ * 대기자는 한 스레드라고 가정한다.
  * AQS와 이 패키지의 모든 락이 스레드를 재우고 깨울 때 결국 이 두 메서드를 쓴다.
  * 패키지 설명의 계층 그림에서 가장 아래층이다. 위층의 도구들은 여기에 {@code state} CAS, 대기 큐, 락 연동을 얹은 것이고,
  * 이 클래스는 그것들 없이 park/unpark를 직접 쓴다(그래서 대기자를 한 스레드로 가정한다).
@@ -33,23 +34,24 @@ import java.util.concurrent.locks.LockSupport;
  *
  * <h2>테스트로 확인</h2>
  * {@code unpark}가 먼저 와도 permit이 남아 있어 {@code park}가 바로 돌아온다.
- * {@snippet file="com/gunha/lock/locks/OneShotSignalTest.java" region="permit"}
+ * {@snippet file="com/gunha/lock/locks/LockSupportWrapperTest.java" region="permit"}
  */
-public class OneShotSignal {
+public class LockSupportWrapper {
 
 	private volatile boolean signaled;
 
 	private volatile Thread waiter;
 
-	/** signal()이 올 때까지 기다린다. 이미 신호가 왔으면 바로 돌아온다. */
-	public void await() {
+	/** {@link #unpark()}가 불릴 때까지 {@link LockSupport#park(Object)}로 잠든다. 이미 불렸으면 바로 돌아온다. */
+	public void park() {
 		waiter = Thread.currentThread();
 		while (!signaled) {
 			LockSupport.park(this);
 		}
 	}
 
-	public void signal() {
+	/** 신호를 남기고, 잠든 대기자가 있으면 {@link LockSupport#unpark(Thread)}로 깨운다. */
+	public void unpark() {
 		// 순서가 중요하다: 플래그를 먼저 세워야, waiter를 못 본 경우에도 대기자가 루프 조건에서 신호를 본다.
 		signaled = true;
 		Thread current = waiter;
