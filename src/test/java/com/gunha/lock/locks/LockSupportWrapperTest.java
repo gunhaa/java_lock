@@ -39,8 +39,8 @@ class LockSupportWrapperTest {
 	}
 
 	@Test
-	@DisplayName("인터럽트되어도 바쁜 대기 없이 계속 잠들어 있고, unpark 뒤 인터럽트 플래그를 되살려 돌아온다")
-	void interruptDoesNotSpin() throws Exception {
+	@DisplayName("인터럽트하면 park는 예외 없이 돌아오고, 인터럽트 플래그는 켜진 채 남는다")
+	void interruptReturnsWithFlagSet() throws Exception {
 		LockSupportWrapper wrapper = new LockSupportWrapper();
 		Started<Boolean> waiter = TestThreads.start("waiter", () -> {
 			wrapper.park();
@@ -50,12 +50,7 @@ class LockSupportWrapperTest {
 
 		waiter.thread().interrupt();
 
-		// 대기자가 플래그를 지워야 다시 잠들 수 있다. 지우지 않았다면 park가 계속 바로 돌아와 이 루프가 끝나지 않고 @Timeout으로 실패한다.
-		while (waiter.thread().isInterrupted()) {
-			Thread.sleep(1);
-		}
-		TestThreads.awaitState(waiter.thread(), Thread.State.WAITING);
-		wrapper.unpark();
+		// 루프 조건에 플래그가 없다면 park가 계속 바로 돌아와 끝나지 않고, join()이 시간 초과로 실패한다.
 		assertThat(waiter.join()).isTrue();
 	}
 

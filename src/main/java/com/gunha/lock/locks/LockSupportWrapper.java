@@ -27,10 +27,9 @@ import java.util.concurrent.locks.LockSupport;
  * <h2>주의</h2>
  * <ul>
  * <li>{@code park}는 이유 없이 돌아올 수 있다(spurious). 그래서 반드시 상태 플래그({@code signaled})를 루프로 다시 확인한다.</li>
- * <li>{@code park}는 인터럽트를 받으면 돌아오지만 예외를 던지지 않고, 인터럽트 플래그도 지우지 않는다.
- *     플래그가 켜진 채로 다시 {@code park}하면 바로 돌아오므로, 그대로 두면 루프가 잠들지 못하고 CPU를 계속 쓴다(busy spin).
- *     그래서 {@link #park()}는 {@code Thread.interrupted()}로 플래그를 지우고 계속 기다린 뒤, 돌아가기 전에 플래그를 되살린다.
- *     {@code ReentrantLock.lock()}이 인터럽트를 다루는 방식과 같다.</li>
+ * <li>{@code park}는 인터럽트를 받으면 예외 없이 돌아오고, 인터럽트 플래그도 지우지 않는다.
+ *     플래그가 켜진 채 다시 {@code park}하면 바로 돌아오므로, 루프 조건에 플래그를 넣지 않으면 잠들지 못하고 CPU를 계속 쓴다(busy spin).
+ *     인터럽트를 받아도 계속 기다리기({@code lock()})나 예외로 끝내기({@code lockInterruptibly()})는 이 위에 얹는 정책이다.</li>
  * <li>{@code park(this)}처럼 blocker 객체를 넘기면 스레드 덤프에 "무엇을 기다리는지"가 찍힌다.</li>
  * </ul>
  *
@@ -45,21 +44,14 @@ public class LockSupportWrapper {
 	private volatile Thread waiter;
 
 	/**
-	 * {@link #unpark()}가 불릴 때까지 {@link LockSupport#park(Object)}로 잠든다. 이미 불렸으면 바로 돌아온다.
-	 * 인터럽트되어도 포기하지 않고 계속 기다리며, 돌아갈 때 인터럽트 플래그를 되살린다.
+	 * {@link #unpark()}가 불리거나 인터럽트될 때까지 {@link LockSupport#park(Object)}로 잠든다. 이미 불렸으면 바로 돌아온다.
+	 * 인터럽트로 돌아와도 예외는 없고, 인터럽트 플래그는 켜진 채 남는다.
 	 */
 	public void park() {
 		waiter = Thread.currentThread();
-		boolean interrupted = false;
-		while (!signaled) {
+		// 플래그가 켜져 있으면 park가 계속 바로 돌아오므로, 루프 조건에 넣어야 바쁜 대기를 피한다.
+		while (!signaled && !Thread.currentThread().isInterrupted()) {
 			LockSupport.park(this);
-			// 플래그를 지우지 않으면 다음 park가 바로 돌아와 이 루프가 계속 돈다.
-			if (Thread.interrupted()) {
-				interrupted = true;
-			}
-		}
-		if (interrupted) {
-			Thread.currentThread().interrupt();
 		}
 	}
 
