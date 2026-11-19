@@ -1,5 +1,5 @@
 /**
- * 모니터 락: JVM에 내장된 락. ({@code synchronized}, {@code Object.wait/notify})
+ * [1] 모니터 락: JVM에 내장된 락. ({@code synchronized}, {@code Object.wait/notify})
  *
  * <h2>무엇인가</h2>
  * 모든 자바 객체는 락으로 쓸 수 있다. 락 상태는 객체 헤더의 mark word에 기록되고,
@@ -174,10 +174,10 @@
  * <h2>예제</h2>
  * 래퍼 두 개는 감싼 언어 기능({@code synchronized}, {@code Object.wait/notify}) 이름 뒤에 {@code Wrapper}를 붙였다.
  * {@code UnsafeCounter}는 감싸는 API가 없는 반례라서 래퍼가 아니다.
- * <ul>
+ * <ol>
  * <li>{@link com.gunha.lock.monitor.UnsafeCounter}: 락이 없을 때 생기는 갱신 유실(volatile로도 못 막음)</li>
  * <li>{@link com.gunha.lock.monitor.SynchronizedWrapper}: {@code synchronized}의 상호 배제, 재진입, BLOCKED 상태</li>
  * <li>{@link com.gunha.lock.monitor.WaitNotifyWrapper}: {@code wait/notifyAll}로 만든 생산자-소비자</li>
- * </ul>
+ * </ol>
  */
 package com.gunha.lock.monitor;

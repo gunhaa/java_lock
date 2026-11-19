@@ -1,10 +1,10 @@
 /**
- * 동기화 도구와 원자 변수: {@code java.util.concurrent}, {@code java.util.concurrent.atomic}.
+ * [3] 동기화 도구와 원자 변수: {@code java.util.concurrent}, {@code java.util.concurrent.atomic}.
  *
  * <h2>무엇인가</h2>
  * 상호 배제(한 번에 하나)가 아니라 "몇 개까지", "몇 개가 끝날 때까지", "모두 모일 때까지"처럼
  * 스레드 사이의 <b>조율</b>을 표현하는 도구들이다. 락으로 직접 만들 수 있지만, 검증된 구현을 쓰는 편이 안전하다.
- * 뒤쪽의 원자 변수는 반대로 아예 <b>락 없이</b>(lock-free) CAS 명령으로 동시성을 해결한다.
+ * 원자 변수는 반대로 아예 <b>락 없이</b>(lock-free) CAS 명령으로 동시성을 해결한다.
  *
  * <h2>구현 관점</h2>
  * <ul>
@@ -24,12 +24,12 @@
  *
  * <h2>예제</h2>
  * 예제마다 API 하나를 감싼 래퍼이고, 이름은 감싼 API 이름 뒤에 {@code Wrapper}를 붙였다.
- * <ul>
+ * <ol>
+ * <li>{@link com.gunha.lock.concurrent.AtomicIntegerWrapper}: {@code AtomicInteger}와 CAS 재시도 루프</li>
+ * <li>{@link com.gunha.lock.concurrent.LongAdderWrapper}: 경합이 심한 카운터용 {@code LongAdder}</li>
  * <li>{@link com.gunha.lock.concurrent.SemaphoreWrapper}: {@code Semaphore}로 동시 실행 수 제한</li>
  * <li>{@link com.gunha.lock.concurrent.CountDownLatchWrapper}: {@code CountDownLatch}로 시작 신호와 완료 대기</li>
  * <li>{@link com.gunha.lock.concurrent.CyclicBarrierWrapper}: {@code CyclicBarrier}로 라운드마다 모두 모이기</li>
- * <li>{@link com.gunha.lock.concurrent.AtomicIntegerWrapper}: {@code AtomicInteger}와 CAS 재시도 루프</li>
- * <li>{@link com.gunha.lock.concurrent.LongAdderWrapper}: 경합이 심한 카운터용 {@code LongAdder}</li>
- * </ul>
+ * </ol>
  */
 package com.gunha.lock.concurrent;
