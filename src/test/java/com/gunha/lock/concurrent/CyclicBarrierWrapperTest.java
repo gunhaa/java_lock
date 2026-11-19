@@ -30,6 +30,21 @@ class CyclicBarrierWrapperTest {
 	}
 
 	@Test
+	@DisplayName("작업자 하나가 인터럽트되면 배리어가 깨지고, 호출자는 일부 라운드만 담긴 결과 대신 예외를 받는다")
+	void failureReachesCaller() {
+		// 작업자 0이 라운드 1에서 자기 스레드를 인터럽트하면, 바로 다음 await()가 InterruptedException을 던지며 배리어를 깬다.
+		assertThatThrownBy(() -> CyclicBarrierWrapper.awaitEachRound(3, 3, (worker, round) -> {
+			if (worker == 0 && round == 1) {
+				Thread.currentThread().interrupt();
+			}
+			return 1;
+		}))
+			.isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("3라운드 중 1라운드만")
+			.satisfies(ex -> assertThat(ex.getSuppressed()).hasAtLeastOneElementOfType(InterruptedException.class));
+	}
+
+	@Test
 	@DisplayName("한 명이 시간 초과로 빠지면 배리어가 깨지고, 기다리던 다른 스레드도 BrokenBarrierException을 받는다")
 	void brokenBarrier() throws Exception {
 		CyclicBarrier barrier = new CyclicBarrier(3);
