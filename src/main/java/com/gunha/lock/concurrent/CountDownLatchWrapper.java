@@ -18,11 +18,13 @@ import java.util.concurrent.TimeUnit;
  *
  * <h2>이 예제의 래치 세 개</h2>
  * <ol>
- * <li>{@code ready}(N): 모든 작업 스레드가 생성되어 출발선에 섰는지.</li>
- * <li>{@code startGate}(1): 출발 신호. 하나를 0으로 만들어 N개 스레드를 한꺼번에 깨운다.
+ * <li>{@code ready}(N): 모든 작업 스레드가 생성되어 출발선에 섰는지. 이것을 기다린 뒤 출발시켜야
+ *     늦게 만들어진 스레드가 출발 신호 뒤에야 도착해, 기다리지 않고 따로 출발하는 일이 없다.</li>
+ * <li>{@code startGate}(1): 출발 신호. 카운트 1을 0으로 내려 N개 스레드를 한꺼번에 깨운다.
  *     스레드 생성 시간 차이를 없애 실제 경합을 만들 때 쓰는 패턴이다.</li>
  * <li>{@code done}(N): 모든 작업 완료.</li>
  * </ol>
+ * 테스트 도우미 {@code TestThreads.runConcurrently}도 같은 패턴을 쓴다.
  *
  * <h2>메모리 가시성</h2>
  * {@code countDown()} 이전의 동작은 그 카운트다운 덕분에 돌아온 {@code await()} 이후보다 happens-before다.

@@ -4,10 +4,9 @@ import java.util.concurrent.locks.LockSupport;
 
 /**
  * {@link LockSupport}를 감싼 래퍼. {@link LockSupport#park}/{@link LockSupport#unpark}만으로 일회용 신호를 만든다.
- * 대기자는 한 스레드라고 가정한다.
- * AQS와 이 패키지의 모든 락이 스레드를 재우고 깨울 때 결국 이 두 메서드를 쓴다.
- * 패키지 설명의 계층 그림에서 가장 아래층이다. 위층의 도구들은 여기에 {@code state} CAS, 대기 큐, 락 연동을 얹은 것이고,
- * 이 클래스는 그것들 없이 park/unpark를 직접 쓴다(그래서 대기자를 한 스레드로 가정한다).
+ * AQS와 {@code java.util.concurrent.locks}의 모든 락이 스레드를 재우고 깨울 때 결국 이 두 메서드를 쓴다.
+ * 패키지 설명의 계층 그림에서 자바 코드로는 가장 아래층이다. 위층의 도구들은 여기에 {@code state} CAS, sync queue, 락 연동을 얹은 것이고,
+ * 이 클래스는 그것들 없이 park/unpark를 직접 쓴다. 큐가 없으므로 대기자는 한 스레드라고 가정한다.
  *
  * <h2>permit 모델</h2>
  * 스레드마다 permit이 0개 또는 1개 있다(세마포어처럼 쌓이지 않는다).
@@ -16,19 +15,22 @@ import java.util.concurrent.locks.LockSupport;
  * <li>{@code park()}: permit이 있으면 소비하고 즉시 돌아온다. 없으면 잠든다.</li>
  * </ul>
  * 그래서 <b>unpark가 park보다 먼저 와도 신호가 유실되지 않는다.</b> {@code Object.notify()}는 대기자가 없으면
- * 사라지는 것과 대조적이다. 이 성질 덕분에 AQS가 "큐에 넣기"와 "잠들기" 사이의 경쟁을 안전하게 처리한다.
+ * 사라지는 것과 대조적이다. 이 성질 덕분에 AQS는 대기자가 큐에 들어간 뒤 park하기 직전에 해제하는 쪽이 unpark해도 신호를 잃지 않는다.
  *
  * <h2>JVM·OS 관점</h2>
  * {@code LockSupport.park} → {@code Unsafe.park} → 스레드마다 하나 있는 HotSpot {@code Parker}.
- * Parker는 OS 뮤텍스·조건 변수와 {@code _counter}(= permit)를 가진다.
- * Linux는 {@code pthread_cond_wait}(futex 시스템 콜), Windows는 이벤트에 {@code WaitForSingleObject}.
+ * Parker는 {@code _counter}(= permit)와 OS 대기 수단을 가진다. Linux는 pthread 뮤텍스·조건 변수로
+ * {@code pthread_cond_wait}(futex 시스템 콜)를 쓰고, Windows는 이벤트 객체에 {@code WaitForSingleObject}를 쓴다(docs/03 3.7절).
  * 플랫폼 스레드는 OS 스케줄러의 실행 큐에서 빠지고, 상태는 {@code WAITING}이 된다.
  * 가상 스레드라면 OS 스레드를 재우지 않고, 컨티뉴에이션을 힙에 저장한 뒤 캐리어 스레드에서 내려온다(unmount).
  *
  * <h2>주의</h2>
  * <ul>
- * <li>{@code park}는 이유 없이 돌아올 수 있다(spurious). 인터럽트를 받아도 돌아오지만 예외는 던지지 않는다.
- *     그래서 반드시 조건 변수({@code signaled})와 함께 루프로 쓴다.</li>
+ * <li>{@code park}는 이유 없이 돌아올 수 있다(spurious). 그래서 반드시 상태 플래그({@code signaled})를 루프로 다시 확인한다.</li>
+ * <li>{@code park}는 인터럽트를 받으면 돌아오지만 예외를 던지지 않고, 인터럽트 플래그도 지우지 않는다.
+ *     플래그가 켜진 채로 다시 {@code park}하면 바로 돌아오므로, 그대로 두면 루프가 잠들지 못하고 CPU를 계속 쓴다(busy spin).
+ *     그래서 {@link #park()}는 {@code Thread.interrupted()}로 플래그를 지우고 계속 기다린 뒤, 돌아가기 전에 플래그를 되살린다.
+ *     {@code ReentrantLock.lock()}이 인터럽트를 다루는 방식과 같다.</li>
  * <li>{@code park(this)}처럼 blocker 객체를 넘기면 스레드 덤프에 "무엇을 기다리는지"가 찍힌다.</li>
  * </ul>
  *
@@ -42,17 +44,29 @@ public class LockSupportWrapper {
 
 	private volatile Thread waiter;
 
-	/** {@link #unpark()}가 불릴 때까지 {@link LockSupport#park(Object)}로 잠든다. 이미 불렸으면 바로 돌아온다. */
+	/**
+	 * {@link #unpark()}가 불릴 때까지 {@link LockSupport#park(Object)}로 잠든다. 이미 불렸으면 바로 돌아온다.
+	 * 인터럽트되어도 포기하지 않고 계속 기다리며, 돌아갈 때 인터럽트 플래그를 되살린다.
+	 */
 	public void park() {
 		waiter = Thread.currentThread();
+		boolean interrupted = false;
 		while (!signaled) {
 			LockSupport.park(this);
+			// 플래그를 지우지 않으면 다음 park가 바로 돌아와 이 루프가 계속 돈다.
+			if (Thread.interrupted()) {
+				interrupted = true;
+			}
+		}
+		if (interrupted) {
+			Thread.currentThread().interrupt();
 		}
 	}
 
 	/** 신호를 남기고, 잠든 대기자가 있으면 {@link LockSupport#unpark(Thread)}로 깨운다. */
 	public void unpark() {
-		// 순서가 중요하다: 플래그를 먼저 세워야, waiter를 못 본 경우에도 대기자가 루프 조건에서 신호를 본다.
+		// 순서가 중요하다: 플래그를 먼저 세워야 한다. 이 스레드가 waiter를 아직 null로 읽었다면 대기자는 아직 루프 조건을
+		// 확인하기 전이므로, 그때 signaled=true를 보고 잠들지 않는다.
 		signaled = true;
 		Thread current = waiter;
 		if (current != null) {

@@ -14,7 +14,7 @@ import java.util.concurrent.locks.StampedLock;
  * <h2>낙관적 읽기 ({@code StampedLock.tryOptimisticRead})</h2>
  * <ol>
  * <li>{@code tryOptimisticRead()}: 쓰기 락이 없으면 현재 stamp를 돌려준다. <b>공유 메모리에 아무것도 쓰지 않는다.</b>
- *     CAS도 없다.</li>
+ *     CAS도 없다. 쓰기 락이 걸려 있으면 0을 돌려주고, 0은 {@code validate}에서 항상 실패한다.</li>
  * <li>필드를 지역 변수로 복사한다. 이 순간 다른 스레드가 쓰는 중일 수 있어 값이 서로 안 맞을 수 있다.</li>
  * <li>{@code validate(stamp)}: 메모리 로드 배리어({@code VarHandle.acquireFence})를 친 뒤 stamp가 그대로인지 본다.
  *     그대로면 복사한 값은 일관된 스냅샷이다.</li>
@@ -28,7 +28,9 @@ import java.util.concurrent.locks.StampedLock;
  * <ul>
  * <li><b>재진입 불가</b>: 쓰기 락을 쥔 스레드가 다시 {@code writeLock()}하면 자기 자신을 기다리며 교착된다.</li>
  * <li><b>소유자 개념 없음</b>: stamp만 있으면 다른 스레드가 해제할 수 있다.</li>
- * <li>{@code Condition}이 없다. {@code readLock()}/{@code writeLock()}은 인터럽트로 깨울 수 없다(Interruptibly 버전 사용).</li>
+ * <li>{@code Condition}이 없다.</li>
+ * <li>{@code readLock()}/{@code writeLock()}은 인터럽트해도 포기하지 않는다. 포기할 수 있어야 하면
+ *     {@code readLockInterruptibly()}/{@code writeLockInterruptibly()}를 쓴다.</li>
  * <li>검증 전에는 읽은 값을 믿으면 안 된다. 특히 읽은 참조를 따라가거나, 그 값으로 예외가 날 수 있는 계산을 하면 안 된다.</li>
  * </ul>
  *

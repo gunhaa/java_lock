@@ -37,44 +37,48 @@ Windows에서는 `gradlew.bat`을 사용합니다. 결과 보고서는 `build/re
 
 패키지마다 `package-info.java`에 그 패키지의 개요가 있습니다.
 
-예제 클래스는 Java API 하나를 감싼 래퍼이고, 이름은 **감싼 API 이름 + `Wrapper`** 입니다(예: `Semaphore` → `SemaphoreWrapper`). 메서드 이름도 감싼 API의 메서드 이름을 따릅니다. 감싸는 API가 없는 반례 `UnsafeCounter`만 예외입니다.
+예제 클래스는 Java API 하나를 감싼 래퍼이고, 이름은 **감싼 API 이름 + `Wrapper`** 입니다(예: `Semaphore` → `SemaphoreWrapper`). 감싸는 API가 없는 반례 `UnsafeCounter`만 예외입니다. 메서드 이름은 대체로 감싼 API의 메서드 이름을 그대로 쓰거나(`incrementAndGet`, `park`), 하는 일 뒤에 `With` + 획득 방식을 붙입니다(`incrementWithTryLock`, `moveWithWriteLock`).
+
+IDE와 Javadoc은 클래스를 알파벳순으로 보여 주므로, **읽는 순서는 아래 표의 `순서` 열**을 따르세요. 패키지는 1 → 2 → 3 순서로 읽고, 패키지 안에서는 `1-1`, `1-2`처럼 번호 순서로 읽습니다. 각 `package-info.java`의 예제 목록도 같은 순서로 번호가 붙어 있습니다.
 
 ```
 src/main/java/com/gunha/lock
-├── monitor/      JVM 내장 모니터 (synchronized, wait/notify)
-├── locks/        java.util.concurrent.locks (명시적 락)
-└── concurrent/   java.util.concurrent 동기화 도구 + 원자 변수
+├── monitor/      1. JVM 내장 모니터 (synchronized, wait/notify)
+├── locks/        2. java.util.concurrent.locks (명시적 락)
+└── concurrent/   3. java.util.concurrent 동기화 도구 + 원자 변수
 ```
 
-### monitor: JVM 내장 모니터
+### 1. monitor: JVM 내장 모니터
 
 객체 헤더와 mark word의 비트 배치, 스택 락에서 팽창으로 넘어가는 과정, JDK 버전별 변화는 `monitor/package-info.java`에 그림으로 정리했습니다.
 
-| 예제 | 다루는 내용 |
-|---|---|
-| `UnsafeCounter` | 락이 없을 때의 갱신 유실. `volatile`은 가시성만 주고 원자성은 주지 않음 |
-| `SynchronizedWrapper` | `monitorenter`/`monitorexit`, 락 팽창, 재진입, 대기자가 `BLOCKED`가 되는 것 |
-| `WaitNotifyWrapper` | `wait/notifyAll` 생산자-소비자, `while`로 조건을 다시 확인하는 이유, WaitSet이 하나뿐인 한계 |
+| 순서 | 예제 | 다루는 내용 |
+|---|---|---|
+| 1-1 | `UnsafeCounter` | 락이 없을 때의 갱신 유실. `volatile`은 가시성만 주고 원자성은 주지 않음 |
+| 1-2 | `SynchronizedWrapper` | `monitorenter`/`monitorexit`, 락 팽창, 재진입, 대기자가 `BLOCKED`가 되는 것 |
+| 1-3 | `WaitNotifyWrapper` | `wait/notifyAll` 생산자-소비자, `while`로 조건을 다시 확인하는 이유, `_WaitSet`이 하나뿐인 한계 |
 
-### locks: 명시적 락
+### 2. locks: 명시적 락
 
-| 예제 | 다루는 내용 |
-|---|---|
-| `ReentrantLockWrapper` | AQS `state`와 CAS, 공정·비공정, `tryLock(timeout)`, `lockInterruptibly`, 대기자가 `WAITING`이 되는 것 |
-| `ConditionWrapper` | 조건 큐 분리(`notFull`/`notEmpty`)로 `signal` 하나면 충분해지는 구조 |
-| `ReentrantReadWriteLockWrapper` | `state` 상위·하위 16비트 분할, 공유 읽기, 다운그레이드는 되고 업그레이드는 안 되는 이유 |
-| `StampedLockWrapper` | 낙관적 읽기와 `validate`, 재진입 불가, 소유자 없음, `tryConvertToWriteLock` |
-| `LockSupportWrapper` | 모든 락의 바닥인 `LockSupport.park/unpark`, permit 모델 |
+| 순서 | 예제 | 다루는 내용 |
+|---|---|---|
+| 2-1 | `ReentrantLockWrapper` | AQS `state`와 CAS, 공정·비공정, `tryLock(timeout)`, `lockInterruptibly`, 대기자가 `WAITING`이 되는 것 |
+| 2-2 | `ConditionWrapper` | condition queue 분리(`notFull`/`notEmpty`)로 `signal` 하나면 충분해지는 구조 |
+| 2-3 | `ReentrantReadWriteLockWrapper` | `state` 상위·하위 16비트 분할, 공유 읽기, 다운그레이드는 되고 업그레이드는 안 되는 이유 |
+| 2-4 | `StampedLockWrapper` | 낙관적 읽기와 `validate`, 재진입 불가, 소유자 없음, `tryConvertToWriteLock` |
+| 2-5 | `LockSupportWrapper` | 모든 락의 바닥인 `LockSupport.park/unpark`, permit 모델 |
 
-### concurrent: 동기화 도구와 원자 변수
+### 3. concurrent: 동기화 도구와 원자 변수
 
-| 예제 | 다루는 내용 |
-|---|---|
-| `SemaphoreWrapper` | 동시 실행 수 제한, AQS 공유 모드, 소유자 없음 |
-| `CountDownLatchWrapper` | `CountDownLatch`로 시작 신호·완료 대기, 일회용, happens-before |
-| `CyclicBarrierWrapper` | `CyclicBarrier` 라운드, barrier action, 깨진 배리어 |
-| `AtomicIntegerWrapper` | CAS 재시도 루프와 `incrementAndGet`(`lock xadd`) 비교 |
-| `LongAdderWrapper` | `LongAdder`의 셀 분산과 false sharing 방지 |
+원자 변수(락 없는 CAS)를 먼저 보고 2번 locks 패키지의 AQS 락과 대비한 뒤, AQS 공유 모드로 만든 `Semaphore`·`CountDownLatch`와 락과 `Condition`을 조합한 `CyclicBarrier`로 넘어갑니다.
+
+| 순서 | 예제 | 다루는 내용 |
+|---|---|---|
+| 3-1 | `AtomicIntegerWrapper` | CAS 재시도 루프와 `incrementAndGet`(x86의 `lock xadd`) 비교 |
+| 3-2 | `LongAdderWrapper` | `LongAdder`의 셀 분산과 false sharing 방지 |
+| 3-3 | `SemaphoreWrapper` | 동시 실행 수 제한, AQS 공유 모드, 소유자 없음 |
+| 3-4 | `CountDownLatchWrapper` | `CountDownLatch`로 시작 신호·완료 대기, 일회용, happens-before |
+| 3-5 | `CyclicBarrierWrapper` | `CyclicBarrier` 라운드, barrier action, 깨진 배리어 |
 
 ## 한눈에 비교
 

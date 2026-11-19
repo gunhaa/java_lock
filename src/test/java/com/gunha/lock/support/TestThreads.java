@@ -29,7 +29,10 @@ public final class TestThreads {
 	/** 시작한 스레드와 그 결과. */
 	public record Started<T>(Thread thread, FutureTask<T> result) {
 
-		/** 작업이 끝날 때까지 기다려 결과를 돌려준다. 작업에서 난 예외는 {@code ExecutionException}의 원인으로 전달된다. */
+		/**
+		 * 작업이 끝날 때까지 기다려 결과를 돌려준다. 작업에서 난 예외는 {@code ExecutionException}의 원인으로 전달된다.
+		 * 5초 안에 끝나지 않으면 {@code TimeoutException}을 던진다.
+		 */
 		public T join() throws Exception {
 			return result.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 		}
@@ -121,8 +124,8 @@ public final class TestThreads {
 			}
 		}
 		finally {
-			// close()는 모든 작업이 끝날 때까지(인터럽트를 받아도) 기다리므로, 멈춘 작업이 있으면 테스트도 같이 멈춘다.
-			// shutdownNow()는 남은 작업을 인터럽트하고 바로 돌아온다.
+			// try-with-resources(close()) 대신 shutdownNow()를 쓰는 이유: close()는 모든 작업이 끝날 때까지(인터럽트를 받아도)
+			// 기다리므로 멈춘 작업이 있으면 테스트도 같이 멈춘다. shutdownNow()는 남은 작업을 인터럽트하고 바로 돌아온다.
 			pool.shutdownNow();
 		}
 	}
