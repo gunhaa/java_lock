@@ -16,7 +16,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * ReentrantLock (AQS)
  *   state = 1, exclusiveOwnerThread = T1
  *
- *   sync queue (doubly linked)
+ *   sync queue (doubly linked, head is a dummy node)
  *   head -> [T3] <-> [T4] <- tail                   waiting for lock()
  *
  *   notEmpty: condition queue (singly linked, FIFO)
@@ -44,6 +44,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * <h2>signal()이 하는 일</h2>
  * {@code firstWaiter}(가장 오래 기다린 노드) 하나를 condition queue에서 떼어 sync queue 꼬리로 <b>옮긴다</b>.
  * 보통 이 시점에는 깨우지 않는다. {@code signal()}을 부른 스레드가 아직 락을 쥐고 있으므로, 그 스레드가 {@code unlock()}할 때 깨어난다.
+ * (sync queue의 앞 노드가 취소된 경우처럼 옮긴 노드를 깨울 쪽이 없으면 바로 {@code unpark}하기도 한다.)
  * {@code signalAll()}은 condition queue의 노드를 앞에서부터 전부 순서대로 옮긴다.
  * <pre>{@code
  * signal() on notEmpty
@@ -55,9 +56,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@code await()}와 {@code signal()}을 걷어 내면 바닥에는 {@link java.util.concurrent.locks.LockSupport#park() LockSupport.park()}/{@link java.util.concurrent.locks.LockSupport#unpark(Thread) unpark()}만 남는다.
  * {@code Condition}은 그 위에 네 가지를 얹은 것이다.
  * <ul>
+ * <li><b>락과의 연동</b>: 잠들기 전에 락을 완전히 놓고, 깨어나면 다시 얻는다(위 {@code await()} 3~5단계).
+ *     락을 쥔 채 park하면 아무도 상태를 바꾸지 못해 교착된다.</li>
+ * <li><b>깨우는 시점</b>: {@code signal()}은 옮기기만 하고 깨우기는 {@code unlock()}에 맡긴다(위 {@code signal()}).
+ *     바로 깨우면 락을 못 얻고 다시 잠드는 헛걸음이 된다.</li>
  * <li><b>누구를 깨울지</b>: 기다리는 스레드를 condition queue에 FIFO로 기록해 둔다. {@code unpark(t)}만 쓰려면 깨울 스레드를 직접 알아야 한다.</li>
- * <li><b>락과의 연동</b>: 잠들기 전에 락을 완전히 놓고, 깨어난 뒤 같은 재진입 횟수로 다시 얻는다. 락을 쥔 채 park하면 아무도 상태를 바꾸지 못해 교착된다.</li>
- * <li><b>깨우는 시점</b>: {@code signal()}은 sync queue로 옮기기만 하고, 실제 {@code unpark}는 {@code unlock()} 때 한다. 바로 깨우면 락을 못 얻고 다시 잠드는 헛걸음이 된다.</li>
  * <li><b>이상한 깨어남 처리</b>: park에서 돌아오면 자기 노드가 정말 옮겨졌는지 확인하고, 아니면 다시 park한다.
  *     park는 spurious wakeup이나 인터럽트로도 돌아오기 때문이다. 인터럽트와 시간 초과({@code parkNanos})도 여기서 구분한다.</li>
  * </ul>
@@ -71,14 +74,14 @@ import java.util.concurrent.locks.ReentrantLock;
  * </ul>
  * 그래서 {@code await()}에서 돌아와도 조건이 그대로라는 보장이 없고, spurious wakeup도 허용되므로 조건은 {@code while}로 확인한다.
  *
- * <h2>모니터 버전보다 나은 점: 조건 큐 분리</h2>
- * 모니터에는 WaitSet이 하나라 {@code notifyAll()}로 생산자·소비자를 모두 깨워야 했다.
+ * <h2>모니터 버전보다 나은 점: condition queue 분리</h2>
+ * 모니터에는 {@code _WaitSet}이 하나라 {@code notifyAll()}로 생산자·소비자를 모두 깨워야 했다.
  * 여기서는 "가득 차지 않음"({@code notFull})과 "비어 있지 않음"({@code notEmpty})을 따로 기다리므로,
  * 깨워야 할 쪽만 정확히 하나 깨우는 {@code signal()}로 충분하다. 쓸데없는 깨우기와 컨텍스트 스위치가 줄어든다.
  * JDK의 {@link java.util.concurrent.ArrayBlockingQueue}가 정확히 이 구조다.
  *
  * <h2>테스트로 확인</h2>
- * 소비자는 {@code notEmpty} 큐에서만 기다리고, {@code notFull} 큐는 비어 있다.
+ * 소비자는 {@code notEmpty}의 condition queue에서만 기다리고, {@code notFull}의 condition queue는 비어 있다.
  * {@snippet file="com/gunha/lock/locks/ConditionWrapperTest.java" region="condition-queue"}
  */
 public class ConditionWrapper<E> {
@@ -129,7 +132,10 @@ public class ConditionWrapper<E> {
 		}
 	}
 
-	/** {@code notEmpty}에서 기다리는 스레드(빈 버퍼 때문에 기다리는 소비자)가 있는지. ({@code hasWaiters}도 락을 가진 채 불러야 한다) */
+	/**
+	 * {@code notEmpty}에서 기다리는 스레드(빈 버퍼 때문에 기다리는 소비자)가 있는지.
+	 * {@code await}/{@code signal}처럼 {@code hasWaiters}도 락을 쥔 채 불러야 해서 {@code lock()}으로 감쌌다.
+	 */
 	public boolean hasNotEmptyWaiters() {
 		lock.lock();
 		try {
@@ -140,7 +146,7 @@ public class ConditionWrapper<E> {
 		}
 	}
 
-	/** {@code notFull}에서 기다리는 스레드(가득 찬 버퍼 때문에 기다리는 생산자)가 있는지. */
+	/** {@code notFull}에서 기다리는 스레드(가득 찬 버퍼 때문에 기다리는 생산자)가 있는지. 락을 쥐는 이유는 {@link #hasNotEmptyWaiters()}와 같다. */
 	public boolean hasNotFullWaiters() {
 		lock.lock();
 		try {

@@ -32,6 +32,7 @@ class AtomicIntegerWrapperTest {
 		TestThreads.runConcurrently(8, 100_000, wrapper::incrementAndGet);
 
 		assertThat(wrapper.get()).isEqualTo(8 * 100_000);
+		// 래퍼의 CAS 루프를 거치지 않았다는 것만 확인한다. 하드웨어 쪽에 재시도가 없다는 증거는 아니다.
 		assertThat(wrapper.compareAndSetFailures()).isZero();
 	}
 

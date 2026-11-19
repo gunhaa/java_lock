@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Timeout;
 class ConditionWrapperTest {
 
 	@Test
-	@DisplayName("빈 버퍼에서 take하면 notEmpty 조건 큐에서 기다린다")
+	@DisplayName("빈 버퍼에서 take하면 notEmpty의 condition queue에서 기다린다")
 	void takerWaitsOnNotEmpty() throws Exception {
 		// @start region="condition-queue"
 		ConditionWrapper<String> wrapper = new ConditionWrapper<>(1);
@@ -31,7 +31,7 @@ class ConditionWrapperTest {
 	}
 
 	@Test
-	@DisplayName("가득 찬 버퍼에 put하면 notFull 조건 큐에서 기다린다")
+	@DisplayName("가득 찬 버퍼에 put하면 notFull의 condition queue에서 기다린다")
 	void putterWaitsOnNotFull() throws Exception {
 		ConditionWrapper<Integer> wrapper = new ConditionWrapper<>(1);
 		wrapper.put(1);

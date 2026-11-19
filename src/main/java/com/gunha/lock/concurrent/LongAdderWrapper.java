@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.LongAdder;
  * <li>각 {@code Cell}은 {@code @Contended}로 앞뒤에 패딩을 둬서 서로 다른 캐시 라인에 놓인다. 다른 변수인데
  *     같은 캐시 라인에 있어 서로 무효화시키는 <b>거짓 공유(false sharing)</b>를 막는다.</li>
  * </ul>
- * 결과적으로 코어마다 다른 캐시 라인에 쓰게 되어, {@code AtomicInteger}({@link AtomicIntegerWrapper})가 겪는 캐시 라인 핑퐁과 CAS 재시도가 거의 사라진다.
+ * 결과적으로 스레드마다 (대체로) 다른 캐시 라인에 쓰게 되어, {@code AtomicInteger}({@link AtomicIntegerWrapper})가 겪는 캐시 라인 핑퐁과 CAS 재시도가 거의 사라진다.
  *
  * <h2>대가</h2>
  * <ul>

@@ -10,7 +10,7 @@
  * <ul>
  * <li>블록: {@code monitorenter}/{@code monitorexit} 바이트코드. 메서드: {@code ACC_SYNCHRONIZED} 플래그.</li>
  * <li>경합이 없으면 CAS 한 번으로 끝난다(OS 호출 없음). 경합이 생기면 잠깐 스핀하고, 그래도 안 되면 OS에 재워 달라고 한다.</li>
- * <li>락 진입 대기 = {@code BLOCKED}, {@code wait()} 대기 = {@code WAITING}/{@code TIMED_WAITING}.</li>
+ * <li>입장 대기줄에서 진입을 기다리면 {@code BLOCKED}, {@code wait()}로 기다리면 {@code WAITING}/{@code TIMED_WAITING}.</li>
  * <li>해제 → 같은 모니터의 이후 획득 사이에 happens-before가 성립한다(JLS 17.4.5). 가시성까지 함께 보장된다.</li>
  * </ul>
  *
@@ -81,14 +81,12 @@
  *                                        |   _WaitSet          |
  *                                        +---------------------+
  * }</pre>
- *     {@code _header}는 원래 mark word, {@code _owner}는 소유 스레드, {@code _recursions}는 재진입 횟수다.
- *     진입을 기다리는 스레드는 {@code _cxq}/{@code _EntryList}에서 {@code BLOCKED}, {@code wait()}한 스레드는 {@code _WaitSet}에서 {@code WAITING}이 된다.
- *     진입 대기자는 먼저 적응형 스핀(adaptive spinning)으로 잠깐 버티고, 그래도 못 잡으면 OS 대기로 들어간다.</li>
+ *     {@code _header}는 원래 mark word다. 나머지 필드의 뜻과 스레드가 그 사이를 오가는 규칙은 아래 절에서 설명한다.</li>
  * <li><b>GC 표시</b> ({@code 11}): GC가 객체를 옮길 때 새 주소(forwarding pointer)를 기록한다. 락과는 관계없다.</li>
  * </ol>
  *
- * <h3>ObjectMonitor 안에서 스레드가 오가는 길</h3>
- * 모든 객체의 모니터는 같은 세 자리로 동시성을 제어한다. {@code synchronized}, {@code wait()}, {@code notify()}는
+ * <h3>ObjectMonitor 안에서 스레드가 오가는 길 (JDK 21)</h3>
+ * 모든 객체의 모니터는 같은 세 자리({@code _owner}, 입장 대기줄, {@code _WaitSet})로 동시성을 제어한다. {@code synchronized}, {@code wait()}, {@code notify()}는
  * 결국 스레드를 이 세 자리 사이에서 옮기는 일이다.
  * <pre>{@code
  *             synchronized                         monitorexit
@@ -121,13 +119,14 @@
  *                                                           +--> Linux:   pthread_cond_wait -> futex
  * LockSupport.park() (AQS)      -> Parker    (per thread) --+     Windows: WaitForSingleObject (event)
  * }</pre>
- * 그래서 {@code wait()}로 잠든 스레드와 {@code park()}로 잠든 스레드는 OS가 보기에 같은 상태이고, 깨어날 때 컨텍스트 스위치 비용도 같다.
- * 차이는 대기 줄을 누가 관리하느냐(JVM C++ 코드 vs 자바 코드의 AQS)다. 스레드 상태도 여기서 갈린다.
- * {@code _WaitSet}에서 기다리는 스레드는 {@code park()}와 똑같이 {@code WAITING}이고,
- * 모니터 입장 대기줄에서 기다리는 스레드만 JVM이 따로 {@code BLOCKED}로 표시한다.
+ * 그래서 {@code wait()}로 잠든 스레드와 {@code park()}로 잠든 스레드는 OS가 보기에 같은 상태이고, 깨어날 때 컨텍스트 스위치 비용도 같다
+ * (OS 쪽 자세한 동작은 docs/03 3.7절).
+ * 자바 스레드 상태는 대기를 누가 관리하느냐가 아니라 <b>무엇을 기다리느냐</b>로 정해진다({@link java.lang.Thread.State} 명세).
+ * 모니터에 들어가려고(또는 {@code wait()} 뒤 다시 들어가려고) 입장 대기줄에서 기다리면 {@code BLOCKED}이고,
+ * {@code wait()}로 {@code _WaitSet}에서 기다리면 {@code park()}와 똑같이 {@code WAITING}이다.
  * 이동 규칙은 다음과 같다.
  * <ol>
- * <li><b>진입</b>: {@code _owner}가 비어 있으면 CAS로 바로 차지한다. 아니면 잠깐 스핀한 뒤 입장 대기줄에 들어가 잠든다.</li>
+ * <li><b>진입</b>: {@code _owner}가 비어 있으면 CAS로 바로 차지한다. 아니면 적응형 스핀(adaptive spinning)으로 잠깐 버틴 뒤 입장 대기줄에 들어가 잠든다.</li>
  * <li><b>해제</b>: {@code _recursions}가 0이 되면 {@code _owner}를 비우고 입장 대기줄의 스레드 하나를 깨운다.
  *     깨어난 스레드는 막 도착한 스레드와 다시 경쟁하므로 먼저 기다린 순서대로 들어간다는 보장이 없다(공정 모드 없음).</li>
  * <li><b>{@code wait()}</b>: {@code _owner} → {@code _WaitSet}. 모니터가 비므로 입장 대기줄의 다른 스레드가 들어올 수 있다.</li>
@@ -142,13 +141,13 @@
  *
  * <h3>JDK 버전별 변화</h3>
  * <ul>
- * <li><b>JDK 14까지</b>: 편향 락(biased locking)이 기본으로 켜져 있었다. 처음 잠근 스레드의 ID를 mark word에 새겨 두고,
+ * <li><b>JDK 14까지</b>: 편향 락(biased locking)이 기본으로 켜져 있었다. 처음 잠근 스레드의 포인터(아래 {@code thread:54})를 mark word에 새겨 두고,
  *     같은 스레드가 다시 잠글 때는 CAS도 하지 않는다. 다른 스레드가 오면 safepoint에서 편향을 취소(revoke)해야 해서 비용이 컸다.
  * <pre>{@code
  * unlocked  [ unused:25 | hash:31 | -:1 | age:4 | b=0 | 01 ]
  * biased    [ thread:54 | epoch:2 | -:1 | age:4 | b=1 | 01 ]
  * }</pre></li>
- * <li><b>JDK 15</b>: 편향 락 기본 비활성화·deprecated(JEP 374). 요즘 코드는 경합 없는 락을 덜 쓰고, 취소 비용과 VM 코드 복잡도가 이득보다 크다고 판단했다.</li>
+ * <li><b>JDK 15</b>: 편향 락 기본 비활성화·deprecated(JEP 374). {@code Vector}·{@code Hashtable}처럼 메서드마다 동기화하는 옛 컬렉션을 요즘은 덜 써서 편향 락의 이득이 줄었고, 취소 비용과 VM 코드 복잡도가 이득보다 크다고 판단했다.</li>
  * <li><b>JDK 18</b>: 편향 락 코드 제거. {@code b} 비트가 빈자리(위 배치의 [2])가 되었다.</li>
  * <li><b>JDK 21</b>: {@code -XX:LockingMode} 추가. 기본값 1(LM_LEGACY)이 위의 스택 락 방식이고, 2(LM_LIGHTWEIGHT)는 옵션이다.</li>
  * <li><b>JDK 23</b>: LM_LIGHTWEIGHT가 기본값. {@code 00} 상태에서도 hash와 age가 mark word에 그대로 남고,
@@ -157,18 +156,19 @@
  *     Compact Object Headers(JEP 450)가 실험 기능으로 들어왔다. klass pointer를 mark word 안에 접어 넣어 헤더 전체가 8바이트가 된다.
  * <pre>{@code
  * compact   [ klass:22 | hash:31 | -:4 | age:4 | f:1 | lock:2 ]
- * }</pre></li>
+ * }</pre>
+ *     {@code f}는 GC가 쓰는 self-forwarded 비트이고, {@code -:4}는 Valhalla(값 객체)용으로 비워 둔 자리다.</li>
  * <li><b>JDK 25</b>: Compact Object Headers가 정식 기능이 되었다(JEP 519). 기본값은 꺼져 있고 {@code -XX:+UseCompactObjectHeaders}로 켠다.</li>
  * </ul>
  *
- * <h2>OS 관점</h2>
- * 자바 플랫폼 스레드는 OS 스레드와 1:1이다. 모니터에서 잠드는 스레드는 HotSpot의 {@code ParkEvent}를 통해
- * Linux에서는 {@code pthread_cond_wait}(내부적으로 futex 시스템 콜), Windows에서는 이벤트 객체에 대한
- * {@code WaitForSingleObject}로 커널에 들어가 스케줄러 대기열에서 빠진다. 깨어날 때 컨텍스트 스위치 비용이 든다.
- *
  * <h2>locks 패키지와 같은 공식</h2>
- * 모니터도 {@code java.util.concurrent.locks}의 도구들과 같은 공식("{@code state} CAS + 큐 + park")으로 동작한다.
- * mark word CAS가 {@code state} CAS, 입장 대기줄과 {@code _WaitSet}이 큐, {@code ParkEvent}가 park/unpark에 해당한다.
+ * 모니터도 {@link com.gunha.lock.locks} 패키지 설명의 공식("{@code state} CAS + 큐 + park")으로 볼 수 있다.
+ * <ul>
+ * <li>mark word CAS(팽창 뒤에는 {@code _owner} CAS) = {@code state} CAS</li>
+ * <li>입장 대기줄 = AQS의 sync queue</li>
+ * <li>{@code _WaitSet} = AQS {@code Condition}의 condition queue</li>
+ * <li>{@code ParkEvent} = park/unpark</li>
+ * </ul>
  * 차이는 이것을 JVM 안에 C++로 구현했느냐, 자바 라이브러리(AQS)로 구현했느냐다.
  *
  * <h2>예제</h2>

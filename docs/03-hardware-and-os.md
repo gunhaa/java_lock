@@ -72,7 +72,7 @@ HotSpot은 x86에서 volatile 쓰기 뒤에 `mfence` 대신 `lock addl $0,(rsp)`
 | 연산 | x86-64 | ARM64 |
 |---|---|---|
 | CAS (compare-and-swap) | `lock cmpxchg` | `cas`/`casal` (ARMv8.1 LSE), 또는 `ldaxr`/`stlxr` 루프 |
-| fetch-and-add | `lock xadd` | `ldadd` (LSE) |
+| fetch-and-add | `lock xadd` | `ldadd`/`ldaddal` (LSE) |
 | swap | `xchg` (항상 lock 의미) | `swp` (LSE) |
 
 - x86의 `lock` 접두는 그 캐시 라인을 Modified 상태로 붙잡은 채 읽기·비교·쓰기를 끝냅니다. 그동안 다른 코어는 그 라인에 접근하지 못합니다.
@@ -94,7 +94,7 @@ HotSpot은 x86에서 volatile 쓰기 뒤에 `mfence` 대신 `lock addl $0,(rsp)`
 그래서 실제 구현은 **둘을 섞습니다.**
 
 - **모니터:** 적응형 스핀(adaptive spinning). 지난번에 스핀으로 성공했던 락이면 더 오래 스핀하고, 아니면 금방 포기하고 잠듭니다.
-- **AQS:** 대기 큐에 들어간 뒤 잠깐 스핀하고 나서 `park()`합니다.
+- **AQS:** 일부러 오래 도는 단계는 없습니다. sync queue에 들어가는 동안 획득을 몇 번 다시 시도해 보고, 안 되면 `park()`합니다. 깨어난 뒤 큐 맨 앞인데도 다른 스레드에게 락을 뺏기면 그때 짧게 스핀합니다.
 - 스핀 루프 안에서는 `Thread.onSpinWait()`를 부릅니다. x86에서는 `pause` 명령이 되어, 하이퍼스레딩 짝 코어에 자원을 양보하고 전력을 아낍니다.
 
 ## 3.7 OS의 대기: futex
@@ -123,7 +123,7 @@ HotSpot은 futex를 직접 부르지 않고 `pthread_mutex`/`pthread_cond`를 �
 | 상황 | 일어나는 일 | 비용 (대략) |
 |---|---|---|
 | 경합 없음 | `state` CAS 한 번 (`lock cmpxchg`) | 수십 ns 이하 |
-| 경합 있음, 곧 풀림 | CAS 실패 → 큐에 들어감 → 잠깐 스핀 → 획득 | 수백 ns, 캐시 라인 이동 |
-| 경합 있음, 오래 걸림 | 스핀 실패 → `park()` → futex로 커널 대기 → 해제자가 `unpark()` → OS가 다시 스케줄링 | 수 μs 이상 + 캐시 손실 |
+| 경합 있음, 곧 풀림 | CAS 실패 → sync queue에 들어가며 몇 번 재시도 → 획득 | 수백 ns, 캐시 라인 이동 |
+| 경합 있음, 오래 걸림 | 재시도 실패 → `park()` → futex로 커널 대기 → 해제자가 `unpark()` → OS가 다시 스케줄링 | 수 μs 이상 + 캐시 손실 |
 
 락을 빠르게 쓰는 요령은 결국 **경합을 줄이는 것**입니다. 임계 구역을 짧게 하고, 읽기를 공유하고(`ReadWriteLock`, `StampedLock`), 쓰기를 분산시키는(`LongAdder`) 것이 모두 이 목적입니다.
