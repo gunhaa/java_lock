@@ -10,8 +10,11 @@
  * <li>{@code volatile int state}: 락 상태. 의미는 구현이 정한다(아래 공식 절의 목록).</li>
  * <li>획득 시도 = {@code state}에 대한 CAS. JIT이 x86 {@code lock cmpxchg}, ARM64 {@code casal}(또는 LL/SC) 명령으로 바꾼다.
  *     경합이 없으면 이 한 명령으로 끝난다.</li>
- * <li>실패하면 락을 기다리는 줄인 <b>sync queue</b>(CLH 큐를 변형한 이중 연결 리스트)에 노드로 들어간다. 그 과정에서 획득을 몇 번 다시 시도해 보고,
- *     그래도 안 되면 {@link java.util.concurrent.locks.LockSupport#park(Object)}로 잠든다.
+ * <li>실패하면 <b>sync queue</b>에 노드로 들어간다. sync queue는 AQS가 {@code head}/{@code tail} 필드로 관리하는,
+ *     락을 기다리는 스레드 줄(CLH 큐를 변형한 이중 연결 리스트)이다. 이름의 sync는 AQS를 상속한 각 락의 내부 클래스
+ *     {@code Sync}(동기화기)에서 왔고, JDK 문서는 같은 큐를 wait queue, CLH queue라고도 부른다.
+ *     이 프로젝트는 {@code Condition}의 condition queue와 구분하려고 sync queue로 통일했다.
+ *     큐에 들어가는 동안 획득을 몇 번 다시 시도해 보고, 그래도 안 되면 {@link java.util.concurrent.locks.LockSupport#park(Object)}로 잠든다.
  *     모니터의 적응형 스핀처럼 일부러 오래 도는 단계는 없다.</li>
  * <li>해제할 때 {@code state}를 되돌리고, 큐의 다음 노드를 {@code unpark}로 깨운다.</li>
  * </ul>

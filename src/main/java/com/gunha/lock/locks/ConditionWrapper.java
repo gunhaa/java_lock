@@ -8,6 +8,8 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * {@link Condition}을 감싼 래퍼. 한 {@link ReentrantLock}에서 만든 {@code Condition} 두 개({@code notFull}, {@code notEmpty})로
  * 크기 제한 버퍼(생산자-소비자)를 만든다.
+ * 핵심은 기다리는 이유마다 {@code Condition}을 나누고, 상대가 잠든 {@code Condition}만 {@code signal()}하는 것이다.
+ * 가득 차면 생산자는 {@code notFull}에서 {@code await()}하고, 소비자가 하나를 꺼내면 {@code notFull.signal()}로 생산자 하나만 깨운다.
  * {@link com.gunha.lock.monitor.WaitNotifyWrapper}와 같은 일을 하므로 나란히 비교해 볼 것.
  *
  * <h2>큐 구조 (AQS ConditionObject, JDK 21)</h2>

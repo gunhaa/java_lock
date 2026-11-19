@@ -16,12 +16,20 @@ import java.util.concurrent.locks.ReentrantLock;
  * </ul>
  *
  * <h2>공정(fair) vs 비공정(nonfair, 기본값)</h2>
+ * 두 모드 모두 {@code unlock()}은 다음 대기자에게 소유권을 넘겨주지 않는다(hand-off가 아니다). {@code state}를 0으로 만들고
+ * sync queue 맨 앞 스레드를 깨울 뿐이라, 깨어난 스레드도 CAS로 직접 락을 얻어야 한다. 두 모드의 차이는 그 CAS에 누가 끼어드느냐다.
+ * <pre>{@code
+ * unlock(): state = 0, unpark the first thread in the sync queue
+ *   woken first thread   --+
+ *   newly arriving threads +--> CAS(state, 0 -> 1): exactly one wins
+ * }</pre>
  * <ul>
- * <li><b>비공정</b>: 새로 온 스레드가 큐를 무시하고 바로 CAS를 시도한다(barging). 락이 풀린 뒤 큐의 스레드가 깨어나
- *     실제로 실행되기까지 수 μs~수십 μs 동안 락이 비어 있는데, 새로 온 스레드가 그 틈에 락을 쓰고 나가므로 처리량이 높다.
- *     대신 오래 기다린 스레드가 계속 밀리는 기아(starvation)가 이론상 가능하다.</li>
- * <li><b>공정</b>: 큐에 앞선 대기자가 있으면({@code hasQueuedPredecessors()}) 줄을 선다. 순서가 보장되는 대신 락이
- *     넘어갈 때마다 깨우기와 컨텍스트 스위치가 일어나 많이 느리다.</li>
+ * <li><b>비공정</b>: 새로 온 스레드도 큐를 보지 않고 바로 CAS를 시도해, 깨어난 맨 앞 스레드와 <b>CAS로 동시에 경합</b>한다(barging).
+ *     깨어난 스레드는 다시 실행되기까지 수 μs~수십 μs가 걸리지만 새로 온 스레드는 이미 실행 중이라, 대개 새로 온 쪽이 이긴다.
+ *     그 틈에 락을 쓰고 나가므로 처리량이 높다. 진 쪽 중 새로 온 스레드는 큐 꼬리에 줄을 서고, 맨 앞 스레드는 자리를 지킨 채 다시 잠든다.
+ *     그래서 오래 기다린 스레드가 계속 밀리는 기아(starvation)가 이론상 가능하다.</li>
+ * <li><b>공정</b>: 새로 온 스레드는 CAS 전에 큐에 앞선 대기자가 있는지({@code hasQueuedPredecessors()}) 보고, 있으면 경합하지 않고 줄을 선다.
+ *     맨 앞 스레드만 CAS하므로 순서가 보장되는 대신, 락이 넘어갈 때마다 깨우기 지연이 그대로 드러나 많이 느리다.</li>
  * <li>주의: 인자 없는 {@code tryLock()}은 공정 락이어도 공정성을 무시하고 끼어든다.</li>
  * </ul>
  *
