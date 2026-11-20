@@ -62,7 +62,7 @@ src/main/java/com/gunha/lock
 
 | 순서 | 예제 | 다루는 내용 |
 |---|---|---|
-| 2-1 | `ReentrantLockWrapper` | AQS `state`와 CAS, 공정·비공정, `tryLock(timeout)`, `lockInterruptibly`, 대기자가 `WAITING`이 되는 것 |
+| 2-1 | `ReentrantLockWrapper` | `synchronized`와 같은 구조에 제어 수단을 더한 락. AQS `state`와 CAS, 공정·비공정, `tryLock(timeout)`, `lockInterruptibly`, 대기자가 `WAITING`이 되는 것 |
 | 2-2 | `ConditionWrapper` | condition queue 분리(`notFull`/`notEmpty`)로 `signal` 하나면 충분해지는 구조 |
 | 2-3 | `ReentrantReadWriteLockWrapper` | `state` 상위·하위 16비트 분할, 공유 읽기, 다운그레이드는 되고 업그레이드는 안 되는 이유 |
 | 2-4 | `StampedLockWrapper` | 낙관적 읽기와 `validate`, 재진입 불가, 소유자 없음, `tryConvertToWriteLock` |

@@ -34,6 +34,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * </ul>
  *
  * <h2>synchronized로는 안 되는 것</h2>
+ * 구조는 {@code synchronized}와 같다(소유자, 락을 기다리는 리스트, 조건을 기다리는 리스트). 다른 것은 호출자가 대기를 제어할 수 있느냐다.
+ * 전체 비교표는 {@link com.gunha.lock.locks} 패키지 설명에 있다. 대기 순서(공정성)는 위 절에서 다뤘고, 이 절은 대기를 포기하는 두 가지다.
  * <ul>
  * <li>{@link ReentrantLock#tryLock(long, TimeUnit)}: 정해진 시간만 기다리고 포기. 기다리는 동안 {@code TIMED_WAITING}.
  *     교착 회피나 응답 시간 상한이 필요할 때 쓴다.</li>

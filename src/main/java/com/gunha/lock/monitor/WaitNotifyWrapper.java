@@ -7,7 +7,7 @@ import java.util.Deque;
  * {@link Object#wait()}/{@link Object#notifyAll()}을 감싼 래퍼. 이 둘로 크기 제한 버퍼(생산자-소비자)를 만든다.
  *
  * {@code synchronized} 메서드와 {@code wait()}/{@code notifyAll()}은 모두 버퍼 객체({@code this})의 모니터를 쓴다.
- * 모니터의 {@code _owner}, 입장 대기줄, {@code _WaitSet} 구조와 스레드가 그 사이를 오가는 그림은 {@link com.gunha.lock.monitor} 패키지 설명에 있다.
+ * 모니터의 {@code _owner}, {@code _cxq}/{@code _EntryList}, {@code _WaitSet} 구조와 스레드가 그 사이를 오가는 그림은 {@link com.gunha.lock.monitor} 패키지 설명에 있다.
  *
  * <h2>wait()이 하는 일</h2>
  * <ol>
@@ -15,7 +15,7 @@ import java.util.Deque;
  * <li>현재 스레드를 {@code ObjectMonitor}의 {@code _WaitSet}에 넣고, 모니터를 <b>완전히</b> 놓는다(재진입 횟수까지 저장해 둔다).
  *     그래서 다른 스레드가 같은 모니터에 들어와 상태를 바꿀 수 있다.</li>
  * <li>스레드는 OS 대기로 들어가 {@code Thread.State.WAITING}이 된다.</li>
- * <li>{@code notify}를 받으면 {@code _WaitSet}에서 입장 대기줄로 옮겨질 뿐, 바로 실행되지 않는다.
+ * <li>{@code notify}를 받으면 {@code _WaitSet}에서 {@code _cxq} 또는 {@code _EntryList}로 옮겨질 뿐, 바로 실행되지 않는다.
  *     모니터를 다시 잡아야 {@code wait()}에서 돌아온다. 그 사이 상태는 {@code BLOCKED}다.</li>
  * </ol>
  *
@@ -35,7 +35,7 @@ import java.util.Deque;
  * <li>깨어난 소비자는 {@code while}로 확인해 보니 여전히 비어 있어 다시 {@code wait()}한다. 신호는 이 스레드가 써 버려서 사라진다.</li>
  * <li>깨어나야 했던 생산자는 계속 잠들어 있다. 이렇게 모든 스레드가 {@code _WaitSet}에 들어가면 깨워 줄 스레드가 없어 영원히 멈춘다.</li>
  * </ol>
- * {@code notifyAll()}은 기다리는 스레드를 <b>한 번에 모두</b> 입장 대기줄로 옮긴다. 옮겨진 스레드들은 모니터를 차례로 다시 잡고
+ * {@code notifyAll()}은 기다리는 스레드를 <b>한 번에 모두</b> {@code _cxq}/{@code _EntryList}로 옮긴다. 옮겨진 스레드들은 모니터를 차례로 다시 잡고
  * {@code while}로 조건을 확인해, 조건이 맞는 쪽은 진행하고 아닌 쪽은 다시 {@code wait()}한다. 필요한 쪽이 반드시 깨어나므로 안전하다.
  * 다시 {@code wait()}한 스레드는 누군가 다음 {@code notifyAll()}을 부를 때까지 기다린다.
  * 대신 깨어날 필요가 없는 스레드까지 깨워 컨텍스트 스위치가 늘어난다(thundering herd).

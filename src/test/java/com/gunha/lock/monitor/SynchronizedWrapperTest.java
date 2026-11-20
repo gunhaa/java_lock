@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.gunha.lock.support.TestThreads;
 import com.gunha.lock.support.TestThreads.Started;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,6 +74,44 @@ class SynchronizedWrapperTest {
 		holder.join();
 		contender.join();
 		assertThat(wrapper.get()).isEqualTo(1);
+		// @end
+	}
+
+	@Test
+	@DisplayName("여러 스레드가 몰려도 모두 _cxq/_EntryList에서 BLOCKED로 기다린다(_WaitSet이 아니다)")
+	void manyContendersAreAllBlocked() throws Exception {
+		// @start region="blocked-many"
+		SynchronizedWrapper wrapper = new SynchronizedWrapper();
+		CountDownLatch entered = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		Started<Void> holder = TestThreads.start("holder", () -> {
+			wrapper.runWhileLocked(() -> {
+				entered.countDown();
+				TestThreads.awaitLatch(release);
+			});
+			return null;
+		});
+		entered.await();
+
+		List<Started<Void>> contenders = new ArrayList<>();
+		for (int i = 0; i < 3; i++) {
+			contenders.add(TestThreads.start("contender-" + i, () -> {
+				wrapper.increment();
+				return null;
+			}));
+		}
+
+		// 아무도 wait()을 부르지 않았으므로 _WaitSet은 비어 있고, 셋 다 _cxq/_EntryList에 있다.
+		for (Started<Void> contender : contenders) {
+			TestThreads.awaitState(contender.thread(), Thread.State.BLOCKED);
+		}
+
+		release.countDown();
+		holder.join();
+		for (Started<Void> contender : contenders) {
+			contender.join();
+		}
+		assertThat(wrapper.get()).isEqualTo(3);
 		// @end
 	}
 
