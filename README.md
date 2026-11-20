@@ -35,7 +35,7 @@ Windows에서는 `gradlew.bat`을 사용합니다. 결과 보고서는 `build/re
 
 ## 구성
 
-패키지마다 `package-info.java`에 그 패키지의 개요가 있습니다.
+패키지마다 `package-info.java`에 그 패키지의 개요가 있습니다. 최상위 `com/gunha/lock/package-info.java`에는 세 패키지를 관통하는 해법 네 가지와, 같은 패턴이 DB·메시지 큐 같은 다른 곳에 어떻게 나오는지를 정리했습니다.
 
 예제 클래스는 Java API 하나를 감싼 래퍼이고, 이름은 **감싼 API 이름 + `Wrapper`** 입니다(예: `Semaphore` → `SemaphoreWrapper`). 감싸는 API가 없는 반례 `UnsafeCounter`만 예외입니다. 메서드 이름은 대체로 감싼 API의 메서드 이름을 그대로 쓰거나(`incrementAndGet`, `park`), 하는 일 뒤에 `With` + 획득 방식을 붙입니다(`incrementWithTryLock`, `moveWithWriteLock`).
 
