@@ -8,7 +8,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * 각각 락으로 보호한 카운터를 하나 늘린다.
  *
  * <h2>AQS 위에서의 동작</h2>
- * 공통 구조(CAS → sync queue → park)는 {@link com.gunha.lock.locks} 패키지 설명에 있다. {@code ReentrantLock}에서 {@code state}는 보유 횟수다.
+ * 공통 구조(CAS → sync queue → park)는 {@linkplain com.gunha.lock.locks##aqs locks 패키지의 AQS 구조 절}에 있다. {@code ReentrantLock}에서 {@code state}는 보유 횟수다.
  * <ul>
  * <li>{@code state == 0}이면 비어 있다. {@code lock()}은 CAS로 0 → 1을 시도하고, 성공하면 소유 스레드를 기록한다.</li>
  * <li>소유 스레드가 다시 {@code lock()}하면 CAS 없이 {@code state}만 1 늘린다(재진입). {@code getHoldCount()}가 이 값이다.</li>
@@ -35,7 +35,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <h2>synchronized로는 안 되는 것</h2>
  * 구조는 {@code synchronized}와 같다(소유자, 락을 기다리는 리스트, 조건을 기다리는 리스트). 다른 것은 호출자가 대기를 제어할 수 있느냐다.
- * 전체 비교표는 {@link com.gunha.lock.locks} 패키지 설명에 있다. 대기 순서(공정성)는 위 절에서 다뤘고, 이 절은 대기를 포기하는 두 가지다.
+ * 전체 비교표는 {@linkplain com.gunha.lock.locks##monitor-vs-aqs locks 패키지의 비교표}에 있다. 대기 순서(공정성)는 위 절에서 다뤘고, 이 절은 대기를 포기하는 두 가지다.
  * <ul>
  * <li>{@link ReentrantLock#tryLock(long, TimeUnit)}: 정해진 시간만 기다리고 포기. 기다리는 동안 {@code TIMED_WAITING}.
  *     교착 회피나 응답 시간 상한이 필요할 때 쓴다.</li>
@@ -54,7 +54,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * </pre>
  *
  * <h2>메모리 가시성</h2>
- * {@code Lock} 명세가 모니터와 같은 메모리 의미를 보장한다(docs/02 2.2절). 구현으로 보면 {@code state}가 volatile이라
+ * {@code Lock} 명세가 모니터와 같은 메모리 의미를 보장한다(<a href="https://github.com/gunhaa/java_lock/blob/main/docs/02-java-memory-model.md#happens-before">docs/02 2.2절</a>). 구현으로 보면 {@code state}가 volatile이라
  * 해제의 volatile 쓰기와 다음 획득의 volatile 읽기 사이에 happens-before가 성립한다.
  *
  * <h2>테스트로 확인</h2>

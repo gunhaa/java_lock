@@ -65,7 +65,7 @@ stateDiagram-v2
 | `TIMED_WAITING` | 시간 제한이 있는 대기: `sleep()`, `wait(ms)`, `tryLock(timeout)`, `parkNanos()` | `ReentrantLockWrapperTest` |
 | `TERMINATED` | `run()`이 끝남 | |
 
-- **`BLOCKED`와 `WAITING`을 구분하는 기준은 무엇을 기다리느냐입니다.** `BLOCKED`는 모니터에 들어가려고(`wait()` 뒤에 다시 들어가는 경우 포함) 기다릴 때만 붙는 상태입니다. `wait()`, `join()`, `park()`처럼 API를 불러 기다리면 `WAITING`입니다. 그래서 `ReentrantLock`을 기다리는 스레드는 `park()`로 잠들기 때문에 `WAITING`이고, 같은 JVM 모니터 안이라도 `wait()`로 `_WaitSet`에서 기다리는 스레드는 `WAITING`입니다.
+- **`BLOCKED`와 `WAITING`을 구분하는 기준은 무엇을 기다리느냐입니다.** `BLOCKED`는 모니터에 들어가려고(`wait()` 뒤에 다시 들어가는 경우 포함) 기다릴 때만 붙는 상태입니다. `wait()`, `join()`, `park()`처럼 API를 불러 기다리면 `WAITING`입니다. 그래서 `ReentrantLock`을 기다리는 스레드는 `park()`로 잠들기 때문에 `WAITING`이고, 같은 모니터라도 `wait()`로 기다리는 스레드는 `WAITING`입니다.
 - **`RUNNABLE`에 주의하세요.** 소켓 읽기처럼 네이티브 I/O로 막힌 스레드도 JVM은 `RUNNABLE`로 보여 줍니다. 스레드 덤프에서 `RUNNABLE`이라고 실제로 CPU를 쓰고 있는 것은 아닙니다.
 
 ## 1.5 인터럽트
@@ -84,7 +84,7 @@ stateDiagram-v2
 - **JVM만의 개념입니다.** OS가 보기에는 똑같은 스레드입니다.
 - 이 프로젝트의 테스트 스레드는 모두 데몬입니다. 교착된 스레드가 남아도 테스트 JVM이 끝날 수 있게 하려는 것입니다.
 
-## 1.7 가상 스레드 (Java 21)
+## 1.7 가상 스레드 (Java 21) <a id="virtual-thread"></a>
 
 `Thread.ofVirtual()`이나 `Executors.newVirtualThreadPerTaskExecutor()`로 만듭니다. OS 스레드가 아니라 **JVM이 관리하는 가벼운 스레드**입니다(M:N 모델).
 

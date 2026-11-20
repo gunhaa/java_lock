@@ -7,7 +7,7 @@ import java.util.Deque;
  * {@link Object#wait()}/{@link Object#notifyAll()}을 감싼 래퍼. 이 둘로 크기 제한 버퍼(생산자-소비자)를 만든다.
  *
  * {@code synchronized} 메서드와 {@code wait()}/{@code notifyAll()}은 모두 버퍼 객체({@code this})의 모니터를 쓴다.
- * 모니터의 {@code _owner}, {@code _cxq}/{@code _EntryList}, {@code _WaitSet} 구조와 스레드가 그 사이를 오가는 그림은 {@link com.gunha.lock.monitor} 패키지 설명에 있다.
+ * 모니터의 {@code _owner}, {@code _cxq}/{@code _EntryList}, {@code _WaitSet} 구조와 스레드가 그 사이를 오가는 그림은 {@linkplain com.gunha.lock.monitor##object-monitor monitor 패키지의 ObjectMonitor 기본 구성 절}에 있다.
  *
  * <h2>wait()이 하는 일</h2>
  * <ol>

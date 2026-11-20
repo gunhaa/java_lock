@@ -27,7 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *   notFull:  condition queue (singly linked, FIFO)
  *   firstWaiter -> [P1] <- lastWaiter               await() in put()
  * }</pre>
- * 모니터와 필드가 하나씩 대응한다(대응표는 {@link com.gunha.lock.locks} 패키지 설명).
+ * 모니터와 필드가 하나씩 대응한다({@linkplain com.gunha.lock.locks##monitor-vs-aqs locks 패키지의 대응표}).
  * 이 클래스에서 중요한 차이는 조건을 기다리는 리스트의 개수다. 모니터의 {@code _WaitSet}은 객체당 <b>하나</b>이고,
  * condition queue는 {@code Condition}마다 <b>하나</b>다.
  *

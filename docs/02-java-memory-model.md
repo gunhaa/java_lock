@@ -43,7 +43,7 @@ while (running) { }            running = false;
 
 JMM은 이런 최적화를 **어디까지 허용하고, 프로그래머가 무엇을 하면 막을 수 있는지** 정합니다.
 
-## 2.2 핵심 개념: happens-before
+## 2.2 핵심 개념: happens-before <a id="happens-before"></a>
 
 JMM의 중심은 **happens-before(hb)** 관계입니다.
 
@@ -117,7 +117,7 @@ JMM의 가장 중요한 약속은 이것입니다.
 
 `volatile`은 각 읽기·쓰기를 원자적이고 보이게 만들 뿐, **여러 동작을 묶어 주지는 않습니다.** `UnsafeCounter`가 보여 주는 내용입니다. 여러 동작을 하나로 묶으려면 락이나 CAS(`Atomic*`)가 필요합니다.
 
-## 2.5 volatile 정리
+## 2.5 volatile 정리 <a id="volatile"></a>
 
 | 보장 | 설명 |
 |---|---|

@@ -18,7 +18,7 @@ package com.gunha.lock.monitor;
  * <ul>
  * <li>보장: 가시성과 순서. volatile 쓰기가 쓴 값을 읽은 스레드는 쓴 스레드가 그 쓰기 전에 한 동작도 모두 본다(release/acquire).
  *     "즉시" 보인다는 뜻은 아니다. 게다가 volatile 접근끼리는 모든 스레드가 동의하는 하나의 순서를 가지므로,
- *     x86에서는 volatile 쓰기 뒤에 {@code lock addl}(StoreLoad 배리어)이 붙는다. 자세한 규칙은 docs/02 2.5절.</li>
+ *     x86에서는 volatile 쓰기 뒤에 {@code lock addl}(StoreLoad 배리어)이 붙는다. 자세한 규칙은 <a href="https://github.com/gunhaa/java_lock/blob/main/docs/02-java-memory-model.md#volatile">docs/02 2.5절</a>.</li>
  * <li>못 하는 것: 읽기-수정-쓰기의 원자성. 위 1~3 사이 끼어들기는 그대로 일어난다.</li>
  * </ul>
  * volatile을 붙인 이유는 오히려 실험을 확실하게 하기 위해서다. volatile이 없으면 JIT가 루프 안의 증가를
@@ -26,7 +26,7 @@ package com.gunha.lock.monitor;
  *
  * <h2>CPU 관점</h2>
  * 캐시 일관성 프로토콜(MESI)은 "같은 라인의 최신 값"은 보장하지만 "읽고 쓰는 사이에 남이 못 쓰게"는 보장하지 않는다.
- * 그 보장은 x86의 {@code lock} 접두 명령(예: {@code lock xadd})처럼 특별한 명령이나 락이 있어야 한다(docs/03 3.2, 3.5절).
+ * 그 보장은 x86의 {@code lock} 접두 명령(예: {@code lock xadd})처럼 특별한 명령이나 락이 있어야 한다(<a href="https://github.com/gunhaa/java_lock/blob/main/docs/03-hardware-and-os.md#cache-coherence">docs/03 3.2절</a>, <a href="https://github.com/gunhaa/java_lock/blob/main/docs/03-hardware-and-os.md#atomic-instructions">3.5절</a>).
  *
  * <h2>테스트로 확인</h2>
  * 멀티 코어에서 8개 스레드가 10만 번씩 증가시키면 결과가 대개 80만보다 작다.
