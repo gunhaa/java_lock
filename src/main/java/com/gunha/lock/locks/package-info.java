@@ -37,16 +37,16 @@
  *         |
  * ConditionObject (AQS)    condition queue + release/reacquire lock + wake timing
  *         |
- * AQS                      state CAS + sync queue
+ * AQS                      state CAS + sync queue                <- QueuedSynchronizer (mini AQS)
  *         |
- * LockSupport              park/unpark (one permit per thread)   <- LockSupportWrapper
+ * LockSupport              park/unpark (one permit per thread)
  *         |
  * HotSpot Parker           futex (Linux) / WaitForSingleObject (Windows)
  * }</pre>
  *
  * <h2>OS 관점</h2>
  * 위 그림의 맨 아래 두 층이다. 모니터와 마찬가지로 결국 커널 대기다
- * (경로는 {@link com.gunha.lock.locks.LockSupportWrapper}, OS 쪽 동작은 <a href="https://github.com/gunhaa/java_lock/blob/main/docs/03-hardware-and-os.md#futex">docs/03 3.7절</a>).
+ * (경로는 {@link com.gunha.lock.locks.QueuedSynchronizer}, OS 쪽 동작은 <a href="https://github.com/gunhaa/java_lock/blob/main/docs/03-hardware-and-os.md#futex">docs/03 3.7절</a>).
  * 스레드 상태는 {@code BLOCKED}가 아니라 {@code WAITING}/{@code TIMED_WAITING}이다. {@link java.lang.Thread.State} 명세상
  * {@code BLOCKED}는 모니터 진입 대기 전용이고, {@code park()}로 기다리는 스레드는 {@code WAITING}이기 때문이다.
  * 스레드 덤프에는 {@code parking to wait for <0x...> (a java.util.concurrent.locks.ReentrantLock$NonfairSync)}로 나온다.
@@ -119,12 +119,13 @@
  *
  * <h2>예제</h2>
  * 예제마다 API 하나를 감싼 래퍼이고, 이름은 감싼 API 이름 뒤에 {@code Wrapper}를 붙였다.
+ * {@code QueuedSynchronizer}는 {@code LockSupport}를 감싼 것이 아니라 그것으로 AQS를 작게 다시 만든 예제라서 래퍼가 아니다.
  * <ol>
  * <li>{@link com.gunha.lock.locks.ReentrantLockWrapper}: {@code ReentrantLock}의 재진입·tryLock·인터럽트·공정성</li>
  * <li>{@link com.gunha.lock.locks.ConditionWrapper}: {@code Condition} 두 개로 만든 생산자-소비자</li>
  * <li>{@link com.gunha.lock.locks.ReentrantReadWriteLockWrapper}: {@code ReentrantReadWriteLock}의 비관적 공유(읽기 공유·쓰기 배타)</li>
  * <li>{@link com.gunha.lock.locks.StampedLockWrapper}: {@code StampedLock}의 낙관적 검증(낙관적 읽기와 {@code validate})</li>
- * <li>{@link com.gunha.lock.locks.LockSupportWrapper}: 모든 락의 바닥에 있는 {@code LockSupport.park/unpark}</li>
+ * <li>{@link com.gunha.lock.locks.QueuedSynchronizer}: 모든 락의 바닥에 있는 {@code LockSupport.park/unpark}와 큐로 만든 미니 AQS</li>
  * </ol>
  */
 package com.gunha.lock.locks;
