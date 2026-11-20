@@ -96,17 +96,34 @@
  * <li><b>스핀</b>: 모니터는 잠들기 전에 적응형 스핀을 하고, AQS는 거의 바로 park한다.</li>
  * <li><b>Java 21 가상 스레드</b>: {@code synchronized} 안에서 블로킹하면 캐리어 스레드가 묶인다(pinning, JDK 24에서 해결). AQS의 park는 캐리어를 놓아준다.</li>
  * </ul>
- * 락의 모드를 바꾼 변형이 둘 있다. {@code ReentrantReadWriteLock}은 이 구조에 읽기 공유 모드를 더한 것이다.
- * {@code StampedLock}은 소유자와 {@code Condition}을 버리는 대신, 락 없이 읽고 나중에 검증하는 낙관적 읽기를 더했다.
- * 그래서 위 공통 공식은 따르지만 이 표의 구조와는 다르다.
+ *
+ * <h2 id="read-heavy">읽기가 많을 때: 비관적 공유와 낙관적 검증</h2>
+ * {@code ReentrantReadWriteLock}과 {@code StampedLock}은 <b>같은 문제</b>(읽기가 많고 쓰기가 드물다)를 <b>반대 전략</b>으로 푼다.
+ * 충돌을 미리 막느냐(비관), 일단 읽고 나중에 확인하느냐(낙관)의 차이다. 낙관적 읽기도 확인에 실패한 값은 버리므로 결과는 항상 맞다.
+ * <table class="striped">
+ * <caption>읽기 락과 낙관적 읽기</caption>
+ * <thead>
+ * <tr><th scope="col"></th><th scope="col">{@code ReentrantReadWriteLock} 읽기 락</th><th scope="col">{@code StampedLock} 낙관적 읽기</th></tr>
+ * </thead>
+ * <tbody>
+ * <tr><th scope="row">전략</th><td>비관적 공유: 쓰기가 못 들어오게 막고 읽는다</td><td>낙관적 검증: 막지 않고 읽은 뒤 {@code validate}로 확인한다</td></tr>
+ * <tr><th scope="row">읽을 때 {@code state}에 쓰나</th><td>쓴다. 얻을 때 +1, 놓을 때 -1 (CAS 두 번)</td><td>안 쓴다. 읽기만 한다</td></tr>
+ * <tr><th scope="row">쓰기와 겹치면</th><td>쓰기가 끝날 때까지 기다린다</td><td>읽은 값을 버리고 다시 읽는다(보통 진짜 읽기 락으로)</td></tr>
+ * <tr><th scope="row">유리할 때</th><td>읽기 구간이 길 때, 쓰기가 있어도 기다리면 될 때</td><td>읽기가 짧고 잦으며 쓰기가 드물 때</td></tr>
+ * <tr><th scope="row">구현</th><td>AQS(공유 모드 + 배타 모드), 재진입, 쓰기 락의 {@code Condition}</td><td>AQS가 아닌 자체 구현. 재진입·소유자·{@code Condition} 없음</td></tr>
+ * </tbody>
+ * </table>
+ * 비관적 읽기 락은 서로를 기다리게 하지는 않지만, 모든 독자가 같은 {@code state}에 CAS로 써서 그 캐시 라인을 코어 사이에서 계속 주고받는다.
+ * 읽기 구간이 짧을수록 이 비용이 상대적으로 커지고, 낙관적 읽기는 이것을 없앤다.
+ * 최상위 설명의 {@linkplain com.gunha.lock##four-answers 해법 네 가지}로 보면 읽기 락은 "나눠서 부딪히지 않게", 낙관적 읽기는 "일단 하고 나중에 확인"이다.
  *
  * <h2>예제</h2>
  * 예제마다 API 하나를 감싼 래퍼이고, 이름은 감싼 API 이름 뒤에 {@code Wrapper}를 붙였다.
  * <ol>
  * <li>{@link com.gunha.lock.locks.ReentrantLockWrapper}: {@code ReentrantLock}의 재진입·tryLock·인터럽트·공정성</li>
  * <li>{@link com.gunha.lock.locks.ConditionWrapper}: {@code Condition} 두 개로 만든 생산자-소비자</li>
- * <li>{@link com.gunha.lock.locks.ReentrantReadWriteLockWrapper}: {@code ReentrantReadWriteLock}의 공유 읽기·배타 쓰기</li>
- * <li>{@link com.gunha.lock.locks.StampedLockWrapper}: {@code StampedLock}의 낙관적 읽기</li>
+ * <li>{@link com.gunha.lock.locks.ReentrantReadWriteLockWrapper}: {@code ReentrantReadWriteLock}의 비관적 공유(읽기 공유·쓰기 배타)</li>
+ * <li>{@link com.gunha.lock.locks.StampedLockWrapper}: {@code StampedLock}의 낙관적 검증(낙관적 읽기와 {@code validate})</li>
  * <li>{@link com.gunha.lock.locks.LockSupportWrapper}: 모든 락의 바닥에 있는 {@code LockSupport.park/unpark}</li>
  * </ol>
  */
