@@ -105,7 +105,7 @@
  * <ol>
  * <li>{@link com.gunha.lock.locks.ReentrantLockWrapper}: {@code ReentrantLock}의 재진입·tryLock·인터럽트·공정성</li>
  * <li>{@link com.gunha.lock.locks.ConditionWrapper}: {@code Condition} 두 개로 만든 생산자-소비자</li>
- * <li>{@link com.gunha.lock.locks.ReentrantReadWriteLockWrapper}: {@code ReentrantReadWriteLock}의 공유 읽기·배타 쓰기·다운그레이드</li>
+ * <li>{@link com.gunha.lock.locks.ReentrantReadWriteLockWrapper}: {@code ReentrantReadWriteLock}의 공유 읽기·배타 쓰기</li>
  * <li>{@link com.gunha.lock.locks.StampedLockWrapper}: {@code StampedLock}의 낙관적 읽기</li>
  * <li>{@link com.gunha.lock.locks.LockSupportWrapper}: 모든 락의 바닥에 있는 {@code LockSupport.park/unpark}</li>
  * </ol>

@@ -64,8 +64,8 @@ src/main/java/com/gunha/lock
 |---|---|---|
 | 2-1 | `ReentrantLockWrapper` | `synchronized`와 같은 구조에 제어 수단을 더한 락. AQS `state`와 CAS, 공정·비공정, `tryLock(timeout)`, `lockInterruptibly`, 대기자가 `WAITING`이 되는 것 |
 | 2-2 | `ConditionWrapper` | condition queue 분리(`notFull`/`notEmpty`)로 `signal` 하나면 충분해지는 구조 |
-| 2-3 | `ReentrantReadWriteLockWrapper` | `state` 상위·하위 16비트 분할, 공유 읽기, 다운그레이드는 되고 업그레이드는 안 되는 이유 |
-| 2-4 | `StampedLockWrapper` | 낙관적 읽기와 `validate`, 재진입 불가, 소유자 없음, `tryConvertToWriteLock` |
+| 2-3 | `ReentrantReadWriteLockWrapper` | `state` 상위·하위 16비트 분할, 읽기는 공유·쓰기는 배타 (다운그레이드·업그레이드 규칙은 Javadoc 설명) |
+| 2-4 | `StampedLockWrapper` | 낙관적 읽기와 `validate`, 쓰기가 끼어들어도 일관된 값만 보는 것 (재진입 불가·소유자 없음은 Javadoc 설명) |
 | 2-5 | `LockSupportWrapper` | 모든 락의 바닥인 `LockSupport.park/unpark`, permit 모델 |
 
 ### 3. concurrent: 동기화 도구와 원자 변수
