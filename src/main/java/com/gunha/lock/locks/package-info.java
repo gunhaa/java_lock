@@ -10,7 +10,7 @@
  * <li>{@code volatile int state}: 락 상태. 의미는 구현이 정한다(아래 공식 절의 목록).</li>
  * <li>획득 시도 = {@code state}에 대한 CAS. JIT이 x86 {@code lock cmpxchg}, ARM64 {@code casal}(또는 LL/SC) 명령으로 바꾼다.
  *     경합이 없으면 이 한 명령으로 끝난다.</li>
- * <li>실패하면 <b>sync queue</b>에 노드로 들어간다. sync queue는 AQS가 {@code head}/{@code tail} 필드로 관리하는,
+ * <li>실패하면 <b>sync queue</b> 꼬리({@code tail})에 CAS로 노드를 붙인다(락 없이 넣는 lock-free 삽입). sync queue는 AQS가 {@code head}/{@code tail} 필드로 관리하는,
  *     락을 기다리는 스레드 줄(CLH 큐를 변형한 이중 연결 리스트)이다. 이름의 sync는 AQS를 상속한 각 락의 내부 클래스
  *     {@code Sync}(동기화기)에서 왔고, JDK 문서는 같은 큐를 wait queue, CLH queue라고도 부른다.
  *     이 프로젝트는 {@code Condition}의 condition queue와 구분하려고 sync queue로 통일했다.
@@ -91,8 +91,8 @@
  * 구현이 달라서 생기는 차이도 있다. 이것은 호출자가 고를 수 없다.
  * <ul>
  * <li><b>스레드 상태</b>: 모니터에 들어가려고 기다리면 {@code BLOCKED}, AQS는 {@code park()}로 기다리므로 {@code WAITING}이다(위 OS 관점).</li>
- * <li><b>리스트 안 순서</b>: sync queue는 도착 순서(FIFO)다. 비공정 모드는 새로 온 스레드의 끼어들기만 허용한다.
- *     {@code _cxq}/{@code _EntryList}는 묶음 단위로 늦게 온 스레드가 먼저 깨어난다.</li>
+ * <li><b>리스트 구조와 순서</b>: sync queue는 리스트 하나에 꼬리로 넣고 머리부터 깨우므로 도착 순서(FIFO)다. 비공정 모드는 새로 온 스레드의 끼어들기만 허용한다.
+ *     모니터는 입력함({@code _cxq})과 소비자 전용 목록({@code _EntryList}) 둘로 나뉘고, 깨어나는 순서가 도착 순서와 다르다.</li>
  * <li><b>스핀</b>: 모니터는 잠들기 전에 적응형 스핀을 하고, AQS는 거의 바로 park한다.</li>
  * <li><b>Java 21 가상 스레드</b>: {@code synchronized} 안에서 블로킹하면 캐리어 스레드가 묶인다(pinning, JDK 24에서 해결). AQS의 park는 캐리어를 놓아준다.</li>
  * </ul>
