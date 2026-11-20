@@ -37,7 +37,7 @@ Windows에서는 `gradlew.bat`을 사용합니다. 결과 보고서는 `build/re
 
 패키지마다 `package-info.java`에 그 패키지의 개요가 있습니다. 최상위 `com/gunha/lock/package-info.java`에는 세 패키지를 관통하는 해법 네 가지와, 같은 패턴이 DB·메시지 큐 같은 다른 곳에 어떻게 나오는지를 정리했습니다.
 
-예제 클래스는 Java API 하나를 감싼 래퍼이고, 이름은 **감싼 API 이름 + `Wrapper`** 입니다(예: `Semaphore` → `SemaphoreWrapper`). 감싸는 API가 없는 반례 `UnsafeCounter`만 예외입니다. 메서드 이름은 대체로 감싼 API의 메서드 이름을 그대로 쓰거나(`incrementAndGet`, `park`), 하는 일 뒤에 `With` + 획득 방식을 붙입니다(`incrementWithTryLock`, `moveWithWriteLock`).
+예제 클래스는 Java API 하나를 감싼 래퍼이고, 이름은 **감싼 API 이름 + `Wrapper`** 입니다(예: `Semaphore` → `SemaphoreWrapper`). 감싸는 API가 없는 반례 `UnsafeCounter`와, `LockSupport`로 AQS를 작게 다시 만든 `QueuedSynchronizer`만 예외입니다. 메서드 이름은 대체로 감싼 API의 메서드 이름을 그대로 쓰거나(`incrementAndGet`, `availablePermits`), 하는 일 뒤에 `With` + 획득 방식을 붙입니다(`incrementWithTryLock`, `moveWithWriteLock`).
 
 IDE와 Javadoc은 클래스를 알파벳순으로 보여 주므로, **읽는 순서는 아래 표의 `순서` 열**을 따르세요. 패키지는 1 → 2 → 3 순서로 읽고, 패키지 안에서는 `1-1`, `1-2`처럼 번호 순서로 읽습니다. 각 `package-info.java`의 예제 목록도 같은 순서로 번호가 붙어 있습니다.
 
@@ -66,7 +66,7 @@ src/main/java/com/gunha/lock
 | 2-2 | `ConditionWrapper` | condition queue 분리(`notFull`/`notEmpty`)로 `signal` 하나면 충분해지는 구조 |
 | 2-3 | `ReentrantReadWriteLockWrapper` | 읽기가 많을 때의 **비관적 공유**. 읽기는 공유·쓰기는 배타, `state` 상위 16비트가 지금 쥔 읽기 락 수인 이유와 상한 |
 | 2-4 | `StampedLockWrapper` | 같은 문제의 **낙관적 검증**. 락 없이 읽고 `validate`로 확인, 쓰기가 끼어들어도 일관된 값만 보는 것 (2-3과의 비교표는 locks 패키지 설명) |
-| 2-5 | `LockSupportWrapper` | 모든 락의 바닥인 `LockSupport.park/unpark`, permit 모델 |
+| 2-5 | `QueuedSynchronizer` | 모든 락의 바닥인 `LockSupport.park/unpark`와 큐로 만든 미니 AQS. permit 모델, 호출자가 져야 하는 책임이 AQS의 각 부분이 되는 것 |
 
 ### 3. concurrent: 동기화 도구와 원자 변수
 

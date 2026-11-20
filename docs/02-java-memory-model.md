@@ -57,7 +57,7 @@ JMM의 중심은 **happens-before(hb)** 관계입니다.
 |---|---|---|
 | **프로그램 순서** | 한 스레드 안에서는 앞의 동작이 뒤의 동작보다 hb | 모든 코드 |
 | **모니터 락** | 모니터 해제(unlock)는 **같은 모니터**의 이후 획득(lock)보다 hb | `SynchronizedWrapper` |
-| **volatile** | volatile 변수 쓰기는 **같은 변수**의 이후 읽기보다 hb | `LockSupportWrapper` |
+| **volatile** | volatile 변수 쓰기는 **같은 변수**의 이후 읽기보다 hb | `QueuedSynchronizer` (`state`) |
 | **스레드 시작** | `t.start()`는 t 안의 모든 동작보다 hb | |
 | **스레드 종료** | t 안의 모든 동작은 다른 스레드에서 `t.join()`이 돌아오는 것(또는 `t.isAlive()`가 false를 보는 것)보다 hb | |
 | **인터럽트** | `t.interrupt()`는 t가 인터럽트를 감지하는 것보다 hb | |
@@ -126,7 +126,7 @@ JMM의 가장 중요한 약속은 이것입니다.
 | 전체 순서 | 모든 volatile 접근은 모든 스레드가 동의하는 하나의 순서를 가진다(순차 일관) |
 | 원자성 | 단일 읽기·쓰기만. `count++`은 보장하지 않음 |
 
-**쓰기 좋은 곳:** 한 스레드만 쓰고 여러 스레드가 읽는 상태 플래그(`running`, `LockSupportWrapper.signaled`), 불변 객체 참조의 발행(publication).
+**쓰기 좋은 곳:** 한 스레드만 쓰고 여러 스레드가 읽는 상태 플래그(`running`, `shutdown` 같은 종료 신호), 불변 객체 참조의 발행(publication).
 **쓰면 안 되는 곳:** 현재 값을 바탕으로 새 값을 계산하는 갱신(카운터, 잔액). 이때는 락이나 `Atomic*`을 씁니다.
 
 ## 2.6 final 필드와 안전한 발행
@@ -255,7 +255,7 @@ x86에서는 volatile 읽기가 공짜이고 쓰기만 비쌉니다. ARM에서�
 | `WaitNotifyWrapper`, `ConditionWrapper` | 대기에서 깨어날 때 락을 다시 얻으므로 락 규칙이 적용됨 |
 | `ReentrantLockWrapper` | `Lock`의 hb 보장. 내부적으로는 AQS `state`의 volatile 쓰기·읽기 |
 | `StampedLockWrapper` | 낙관적 읽기는 hb가 없는 읽기다. 그래서 `validate`로 사후 확인이 필요함 (2.8) |
-| `LockSupportWrapper` | volatile 쓰기 → 읽기 규칙과 이행성 |
+| `QueuedSynchronizer` | 해제의 `state.set(0)`(volatile 쓰기) → 다음 획득의 CAS(그 값을 읽음)와 이행성. 직접 만든 락도 이 규칙으로 임계 구역의 쓰기를 다음 소유자에게 보인다 |
 | `CountDownLatchWrapper`, `CyclicBarrierWrapper` | `CountDownLatch`, `CyclicBarrier`의 hb 보장으로 일반 배열을 공유 |
 | `AtomicIntegerWrapper`, `LongAdderWrapper` | `Atomic*`의 volatile 의미 + CAS의 원자성 |
 
