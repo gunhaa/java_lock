@@ -16,7 +16,7 @@ package com.gunha.lock.monitor;
  *
  * <h2>락 상태</h2>
  * 락 상태는 객체 헤더의 mark word에 기록된다. 비트 배치, 스택 락에서 팽창으로 넘어가는 과정, JDK 버전별 변화는
- * {@link com.gunha.lock.monitor} 패키지 설명에 그림으로 정리했다.
+ * {@linkplain com.gunha.lock.monitor##object-header monitor 패키지의 객체 헤더 절}에 그림으로 정리했다.
  *
  * <h2>경합이 몰리면 어디서 기다리나</h2>
  * 여러 스레드가 동시에 {@code synchronized}에 들어오면 하나만 {@code _owner}가 되고, 나머지는 <b>모두 {@code _cxq}</b>(이후 {@code _EntryList})에서
@@ -31,11 +31,11 @@ package com.gunha.lock.monitor;
  * <ul>
  * <li>경합이 없으면 {@code ObjectMonitor}도 없다(스택 락). 다른 스레드가 오면 그때 팽창해 {@code _cxq}/{@code _EntryList}가 생긴다.</li>
  * <li>깨어나는 순서는 도착 순서가 아니다. {@code _cxq}와 {@code _EntryList}의 차이와 순서 규칙은
- *     {@link com.gunha.lock.monitor} 패키지 설명의 "{@code _cxq}와 {@code _EntryList}" 절에 있다.</li>
+ *     {@linkplain com.gunha.lock.monitor##cxq-entrylist monitor 패키지의 _cxq와 _EntryList 절}에 있다.</li>
  * <li>스레드 덤프에서 구분: {@code _cxq}/{@code _EntryList}면 {@code BLOCKED (on object monitor)}와 {@code waiting to lock <0x...>},
  *     {@code _WaitSet}이면 {@code WAITING (on object monitor)}와 {@code waiting on <0x...>}다.</li>
  * <li>{@link com.gunha.lock.locks.ReentrantLockWrapper}도 구조는 같다. 다른 점은 기다리다 포기하기, 순서 정하기처럼
- *     호출자가 대기를 제어할 수 있느냐다({@link com.gunha.lock.locks} 패키지 설명의 비교표).</li>
+ *     호출자가 대기를 제어할 수 있느냐다({@linkplain com.gunha.lock.locks##monitor-vs-aqs locks 패키지의 비교표}).</li>
  * </ul>
  *
  * <h2>재진입</h2>
@@ -43,12 +43,12 @@ package com.gunha.lock.monitor;
  * {@code synchronized} 메서드 안에서 같은 객체의 다른 {@code synchronized} 메서드를 불러도 교착되지 않는 이유다.
  *
  * <h2>메모리 가시성</h2>
- * 모니터 해제는 같은 모니터의 이후 획득보다 happens-before다(docs/02 2.2절). 그래서 {@code count}에 volatile이 없어도
+ * 모니터 해제는 같은 모니터의 이후 획득보다 happens-before다(<a href="https://github.com/gunhaa/java_lock/blob/main/docs/02-java-memory-model.md#happens-before">docs/02 2.2절</a>). 그래서 {@code count}에 volatile이 없어도
  * 락을 잡은 스레드는 항상 직전 소유자가 쓴 값을 본다.
  *
  * <h2>Java 21 가상 스레드 주의</h2>
  * 가상 스레드가 {@code synchronized} 안에서 블로킹(I/O, sleep, 다른 락 대기)되면, 그 가상 스레드를 실행하던
- * 캐리어(OS) 스레드도 함께 묶인다(pinning). JDK 24(JEP 491)에서 해결되었다. 원인과 확인 방법은 docs/01 1.7절.
+ * 캐리어(OS) 스레드도 함께 묶인다(pinning). JDK 24(JEP 491)에서 해결되었다. 원인과 확인 방법은 <a href="https://github.com/gunhaa/java_lock/blob/main/docs/01-thread-model.md#virtual-thread">docs/01 1.7절</a>.
  * 21에서 가상 스레드를 쓴다면 {@link com.gunha.lock.locks.ReentrantLockWrapper} 쪽이 안전하다.
  *
  * <h2>테스트로 확인</h2>

@@ -6,11 +6,11 @@
  * 경합이 생기거나 {@code wait()}을 부르면 HotSpot이 {@code ObjectMonitor}를 만들어 붙인다(팽창, inflation).
  * 락 획득·해제·대기를 전부 JVM이 처리하므로 라이브러리 코드가 아니라 바이트코드 명령과 VM 런타임의 영역이다.
  *
- * <h2>용어</h2>
+ * <h2 id="terms">용어</h2>
  * mark word와 {@code ObjectMonitor}는 자바 API로 보이지 않는 HotSpot 내부(C++ 코드)다. 그래서 이 설명은 HotSpot 소스
  * ({@code objectMonitor.hpp})의 이름을 그대로 쓴다. 예: {@code _owner}, {@code _recursions}, {@code _cxq}, {@code _EntryList}, {@code _WaitSet}.
  * 자바 명세에 나오는 이름은 wait set(JLS 17.2) 하나뿐이고, {@code _WaitSet}이 그것을 구현한다.
- * AQS 쪽 이름(sync queue, condition queue)과의 대응은 {@link com.gunha.lock.locks} 패키지 설명의 비교표에 모았다.
+ * AQS 쪽 이름(sync queue, condition queue)과의 대응은 {@linkplain com.gunha.lock.locks##monitor-vs-aqs locks 패키지의 비교표}에 모았다.
  *
  * <h2>JVM 관점</h2>
  * <ul>
@@ -20,7 +20,7 @@
  * <li>해제 → 같은 모니터의 이후 획득 사이에 happens-before가 성립한다(JLS 17.4.5). 가시성까지 함께 보장된다.</li>
  * </ul>
  *
- * <h2>객체 헤더 (64비트 HotSpot, JDK 21 기본 설정)</h2>
+ * <h2 id="object-header">객체 헤더 (64비트 HotSpot, JDK 21 기본 설정)</h2>
  * 압축 포인터를 쓰는 기본 설정(힙 32GB 미만)에서 {@link com.gunha.lock.monitor.SynchronizedWrapper} 인스턴스는 이렇게 놓인다.
  * <pre>{@code
  * offset  0                         8             12            16
@@ -87,13 +87,13 @@
  *                                        |   _WaitSet          |
  *                                        +---------------------+
  * }</pre>
- *     {@code _header}는 원래 mark word다. 나머지 필드의 뜻과 스레드가 그 사이를 오가는 규칙은 아래 절에서 설명한다.</li>
+ *     {@code _header}는 원래 mark word다. 나머지 필드의 뜻과 스레드가 그 사이를 오가는 규칙은 아래 {@linkplain com.gunha.lock.monitor##object-monitor ObjectMonitor의 기본 구성} 절에서 설명한다.</li>
  * <li><b>GC 표시</b> ({@code 11}): GC가 객체를 옮길 때 새 주소(forwarding pointer)를 기록한다. 락과는 관계없다.</li>
  * </ol>
  * hash와 락은 같은 자리를 다툰다. 스택 락이 걸린 객체에 처음 {@code identityHashCode()}를 부르면 hash를 둘 곳이 없어서,
  * 경합이 없어도 {@code ObjectMonitor}로 팽창시킨 뒤 {@code _header}에 저장한다.
  *
- * <h3>ObjectMonitor의 기본 구성 (JDK 21)</h3>
+ * <h3 id="object-monitor">ObjectMonitor의 기본 구성 (JDK 21)</h3>
  * 소유자 필드 하나({@code _owner})와 스레드 리스트 셋({@code _cxq}, {@code _EntryList}, {@code _WaitSet})이다.
  * 리스트 셋은 하는 일로 보면 두 종류다. {@code _cxq}와 {@code _EntryList}는 <b>락</b>을 기다리는 스레드를, {@code _WaitSet}은 <b>{@code wait()}</b>으로 조건을 기다리는 스레드를 담는다.
  * {@code synchronized}, {@code wait()}, {@code notify()}는 결국 스레드를 이 필드들 사이에서 옮기는 일이다.
@@ -118,8 +118,7 @@
  * <ul>
  * <li><b>{@code _owner}</b>: 모니터를 가진 스레드. 리스트가 아니라 스레드 하나를 가리키는 필드라 항상 최대 하나이고, 재진입하면 {@code _recursions}만 는다.</li>
  * <li><b>{@code _cxq}, {@code _EntryList}</b>: 모니터에 들어가려고 기다리는 스레드({@code BLOCKED}).
- *     {@code synchronized}에 스레드가 몰리면 경합에서 진 스레드는 <b>전부 여기로</b> 간다. 새로 온 스레드는 먼저 {@code _cxq}에 쌓이고,
- *     해제하는 스레드가 이를 {@code _EntryList}로 옮겨 다음 차례를 고른다. 둘의 차이는 아래 "{@code _cxq}와 {@code _EntryList}" 절에 있다.</li>
+ *     {@code synchronized}에 스레드가 몰리면 경합에서 진 스레드는 <b>전부 여기로</b> 간다. 둘의 차이는 아래 {@linkplain com.gunha.lock.monitor##cxq-entrylist _cxq와 _EntryList} 절에 있다.</li>
  * <li><b>{@code _WaitSet}</b>: {@code wait()}을 부른 스레드({@code WAITING}). 모니터를 <b>완전히</b> 놓고(재진입 횟수는 저장) 여기서 잠든다.
  *     {@code _cxq}/{@code _EntryList}와 달리, 모니터가 비어도 스스로 나오지 못하고 누군가 notify해야 나온다.
  *     락 경합만으로는 아무도 여기 들어오지 않는다. 들어오는 길은 소유자가 직접 부르는 {@code wait()} 하나뿐이다.</li>
@@ -132,7 +131,7 @@
  * LockSupport.park() (AQS)      -> Parker    (per thread) --+     Windows: WaitForSingleObject (event)
  * }</pre>
  * 그래서 {@code wait()}로 잠든 스레드와 {@code park()}로 잠든 스레드는 OS가 보기에 같은 상태이고, 깨어날 때 컨텍스트 스위치 비용도 같다
- * (OS 쪽 자세한 동작은 docs/03 3.7절).
+ * (OS 쪽 자세한 동작은 <a href="https://github.com/gunhaa/java_lock/blob/main/docs/03-hardware-and-os.md#futex">docs/03 3.7절</a>).
  * 자바 스레드 상태는 대기를 누가 관리하느냐가 아니라 <b>무엇을 기다리느냐</b>로 정해진다({@link java.lang.Thread.State} 명세).
  * 모니터에 들어가려고(또는 {@code wait()} 뒤 다시 들어가려고) {@code _cxq}/{@code _EntryList}에서 기다리면 {@code BLOCKED}이고,
  * {@code wait()}로 {@code _WaitSet}에서 기다리면 {@code park()}와 똑같이 {@code WAITING}이다.
@@ -140,7 +139,7 @@
  * <ol>
  * <li><b>진입</b>: {@code _owner}가 비어 있으면 CAS로 바로 차지한다. 아니면 적응형 스핀(adaptive spinning)으로 잠깐 버틴 뒤 {@code _cxq}에 들어가 잠든다.</li>
  * <li><b>해제</b>: {@code _recursions}가 0이 되면 {@code _owner}를 비우고 기다리던 스레드 하나를 깨운다.
- *     누구를 깨우는지와 순서가 보장되지 않는 이유는 아래 "{@code _cxq}와 {@code _EntryList}" 절에 있다(공정 모드 없음).</li>
+ *     누구를 깨우는지와 순서가 보장되지 않는 이유는 아래 {@linkplain com.gunha.lock.monitor##cxq-entrylist _cxq와 _EntryList} 절에 있다(공정 모드 없음).</li>
  * <li><b>{@code wait()}</b>: {@code _owner} → {@code _WaitSet}. 모니터가 비므로 {@code _cxq}/{@code _EntryList}의 다른 스레드가 들어올 수 있다.</li>
  * <li><b>{@code notify()}/{@code notifyAll()}</b>: {@code _WaitSet}에서 하나/전부를 <b>{@code _cxq}/{@code _EntryList}로 옮길 뿐</b>이다. 바로 실행되지 않는다.
  *     notify한 스레드가 모니터를 놓은 뒤, 옮겨진 스레드들은 원래 {@code _cxq}/{@code _EntryList}에 있던 스레드·새로 온 스레드와 함께 <b>순서 보장 없이 하나씩</b> 모니터를 얻고,
@@ -148,40 +147,19 @@
  * </ol>
  * HotSpot은 notify 시점에 OS 수준에서 깨우지 않는다. 어차피 notify한 스레드가 모니터를 쥐고 있으므로, 해제할 때 깨워 컨텍스트 스위치를 아낀다.
  *
- * <h3>{@code _cxq}와 {@code _EntryList} (JDK 21)</h3>
- * 락 CAS에서 <b>진</b> 스레드가 기다리는 곳이다(이긴 스레드는 {@code _owner}가 된다). 둘 다 {@code BLOCKED}이고,
- * 구조로 보면 <b>다중 생산자-단일 소비자(MPSC)</b>다. 생산자는 락 CAS에서 진 스레드들(자기 자신을 넣는다)이고, 소비자는 그 순간 락을 놓는 소유자다.
+ * <h3 id="cxq-entrylist">{@code _cxq}와 {@code _EntryList} (JDK 21)</h3>
+ * 둘 다 락 CAS에서 진 스레드가 {@code BLOCKED}로 기다리는 곳이고, 역할만 다르다.
  * <ul>
- * <li><b>{@code _cxq}</b>: 새로 온 대기자를 받는 <b>공유 입력함</b>. 여러 생산자가 동시에 넣는다.</li>
- * <li><b>{@code _EntryList}</b>: 다음에 깨울 후보를 담은 <b>소비자 전용 목록</b>. 락을 놓는 소유자만 다룬다.</li>
+ * <li><b>{@code _cxq}</b>: 새로 온 스레드가 들어가는 입구. 여러 스레드가 동시에 넣으므로 락 없이 CAS로 머리에 붙인다.
+ *     이름과 달리 스택이라 늦게 온 스레드가 앞에 선다
+ *     (<a href="https://github.com/gunhaa/java_lock/blob/main/docs/03-hardware-and-os.md#lock-free-stack">docs/03 lock-free 스택</a>).</li>
+ * <li><b>{@code _EntryList}</b>: 락을 놓는 소유자만 다루는 다음 후보 목록. 비면 {@code _cxq}를 통째로 떼어 와 채운다.</li>
  * </ul>
- * 이름이 서로 다른 관점에서 지어져 헷갈린다. {@code _cxq}는 안에 든 것(contention queue, 경합에서 진 스레드)을,
- * {@code _EntryList}는 목적(곧 들어갈 스레드)을 따서 지었다. 또 {@code _cxq}는 이름과 달리 큐가 아니라 스택이다.
- * <pre>
- * 락 CAS 실패 → _cxq(공유 입력함) → [_EntryList가 비면 통째로 이동] → _EntryList(소비자 전용 목록) → 맨 앞을 깨움 → 다시 락 CAS
- * </pre>
- * <ul>
- * <li><b>넣기는 lock-free</b>: 생산자는 락 없이 {@code _cxq} 머리에 CAS로 자기를 붙인다(Treiber 스택).
- *     락 CAS와는 다른 CAS다. 락 CAS는 {@code _owner}를 차지하려는 것이고, 이것은 {@code _cxq}의 머리 포인터를 바꾸는 것이다.
- * <pre>{@code
- * do {
- *     node.next = _cxq;                       // read the current head
- * } while (!CAS(&_cxq, node.next, node));     // fails only if another thread pushed first
- * }</pre>
- *     CAS가 실패했다면 그사이 다른 스레드가 성공한 것이므로 머리를 다시 읽고 재시도한다. 항상 누군가는 진행하고, 넣다가 멈춘 스레드가 있어도 다른 스레드를 막지 않는다.</li>
- * <li><b>가져오기는 묶음으로</b>: 소비자는 {@code _EntryList}가 비었을 때만 {@code _cxq}를 null로 바꾸는 원자 연산 한 번으로 스택 전체를 떼어 와 {@code _EntryList}로 옮긴다.
- *     그래서 먼저 깨어나는 쪽은 {@code _EntryList}이고, {@code _cxq}는 그다음 차례다.
- *     생산자와 부딪히는 지점은 이 한 번뿐이고, 그 뒤 {@code _EntryList}는 소비자 혼자 다루므로 원자 연산이 필요 없다.</li>
- * <li><b>깨우기는 한 번에 하나</b>: 묶음으로 가져와도 한꺼번에 깨우지 않는다. 락은 한 스레드만 가질 수 있으므로 해제할 때마다 맨 앞 하나만 깨우고,
- *     나머지는 {@code _EntryList}에서 다음 해제를 기다린다.</li>
- * </ul>
+ * <b>규칙은 정해져 있다</b>: 해제할 때 {@code _EntryList} 맨 앞 하나를 깨운다. 그래서 {@code _EntryList}가 먼저, {@code _cxq}가 그다음이다.
  * {@code notify()}로 {@code _WaitSet}에서 나온 스레드도 둘 중 한 곳에 들어가 똑같이 기다린다.
  * <p>
- * <b>누가 다음에 락을 얻나</b>: 깨우는 규칙은 위 흐름대로 정해져 있다. {@code _cxq}는 스택이라 늦게 온 스레드가 머리에 있고,
- * 옮길 때 순서를 뒤집지 않으므로 한 묶음 안에서는 늦게 온 스레드가 먼저 깨어난다.
- * 하지만 깨운 스레드가 락을 얻는다는 보장은 없다. 다시 실행되기까지 시간이 걸리는 사이 막 도착한 스레드가 락 CAS에서 먼저 이길 수 있고,
- * 언제 CPU를 받을지도 OS가 정한다. 그래서 프로그램 입장에서는 순서를 예측할 수 없고, 오래 기다린 스레드가 계속 밀릴 수도 있다.
- * 순서가 필요하면 공정 모드 {@code ReentrantLock}({@code new ReentrantLock(true)})을 쓴다.
+ * <b>하지만 순서는 보장되지 않는다</b>: 깨어난 스레드도 락 CAS를 다시 해야 하고, 그사이 막 도착한 스레드가 이길 수 있다(barging).
+ * 오래 기다린 스레드가 계속 밀릴 수도 있다. 순서가 필요하면 공정 모드 {@code ReentrantLock}({@code new ReentrantLock(true)})을 쓴다.
  *
  * <h3>JDK 버전별 변화</h3>
  * <ul>
@@ -204,13 +182,12 @@
  *     {@code f}는 GC가 쓰는 self-forwarded 비트이고, {@code -:4}는 Valhalla(값 객체)용으로 비워 둔 자리다.</li>
  * <li><b>JDK 25</b>: Compact Object Headers가 정식 기능이 되었다(JEP 519). 기본값은 꺼져 있고 {@code -XX:+UseCompactObjectHeaders}로 켠다.
  *     {@code ObjectMonitor}의 {@code _cxq}와 {@code _EntryList}가 {@code _entry_list} 하나로 합쳐졌다(JDK-8343840).
- *     새로 온 스레드는 여전히 머리에 CAS로 붙고, 해제하는 소유자는 꼬리(가장 먼저 온 스레드)를 다음 후보로 고른다.
  *     락을 기다리는 리스트와 {@code _WaitSet}이 따로라는 구조와 barging은 그대로다.</li>
  * </ul>
  *
  * <h2>ReentrantLock과의 관계</h2>
  * {@code ReentrantLock}은 이 구조(소유자, 락을 기다리는 리스트, 조건을 기다리는 리스트, park)를 자바 코드(AQS)로 다시 만들고,
- * 대기를 포기하거나 순서를 정하는 등 호출자가 제어할 수단을 더한 것이다. 필드 대응과 차이는 {@link com.gunha.lock.locks} 패키지 설명의 비교표에 있다.
+ * 대기를 포기하거나 순서를 정하는 등 호출자가 제어할 수단을 더한 것이다. 필드 대응과 차이는 {@linkplain com.gunha.lock.locks##monitor-vs-aqs locks 패키지의 비교표}에 있다.
  *
  * <h2>예제</h2>
  * 래퍼 두 개는 감싼 언어 기능({@code synchronized}, {@code Object.wait/notify}) 이름 뒤에 {@code Wrapper}를 붙였다.

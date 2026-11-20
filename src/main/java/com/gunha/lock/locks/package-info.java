@@ -5,9 +5,9 @@
  * 모니터와 달리 JVM 명령이 아니라 <b>자바 코드로 구현된 라이브러리</b>다(Doug Lea, JSR 166, Java 5).
  * 핵심은 거의 모든 구현이 공유하는 뼈대인 {@link java.util.concurrent.locks.AbstractQueuedSynchronizer}(AQS)다.
  *
- * <h2>AQS 구조 (JVM 관점)</h2>
+ * <h2 id="aqs">AQS 구조 (JVM 관점)</h2>
  * <ul>
- * <li>{@code volatile int state}: 락 상태. 의미는 구현이 정한다(아래 공식 절의 목록).</li>
+ * <li>{@code volatile int state}: 락 상태. 의미는 구현이 정한다(아래 {@linkplain com.gunha.lock.locks##formula 공통 공식} 절의 목록).</li>
  * <li>획득 시도 = {@code state}에 대한 CAS. JIT이 x86 {@code lock cmpxchg}, ARM64 {@code casal}(또는 LL/SC) 명령으로 바꾼다.
  *     경합이 없으면 이 한 명령으로 끝난다.</li>
  * <li>실패하면 <b>sync queue</b> 꼬리({@code tail})에 CAS로 노드를 붙인다(락 없이 넣는 lock-free 삽입). sync queue는 AQS가 {@code head}/{@code tail} 필드로 관리하는,
@@ -19,7 +19,7 @@
  * <li>해제할 때 {@code state}를 되돌리고, 큐의 다음 노드를 {@code unpark}로 깨운다.</li>
  * </ul>
  *
- * <h2>공통 공식: state CAS + 큐 + park</h2>
+ * <h2 id="formula">공통 공식: state CAS + 큐 + park</h2>
  * 이 패키지와 {@code java.util.concurrent}의 AQS 기반 동기화 도구는 같은 공식으로 만들어져 있다.
  * <b>"{@code state}를 CAS로 바꿔 보고, 실패하면 큐에 넣고 park한다. 해제할 때 큐에서 꺼내 unpark한다."</b>
  * 도구마다 다른 것은 {@code state}의 의미뿐이다.
@@ -46,16 +46,16 @@
  *
  * <h2>OS 관점</h2>
  * 위 그림의 맨 아래 두 층이다. 모니터와 마찬가지로 결국 커널 대기다
- * (경로는 {@link com.gunha.lock.locks.LockSupportWrapper}, OS 쪽 동작은 docs/03 3.7절).
+ * (경로는 {@link com.gunha.lock.locks.LockSupportWrapper}, OS 쪽 동작은 <a href="https://github.com/gunhaa/java_lock/blob/main/docs/03-hardware-and-os.md#futex">docs/03 3.7절</a>).
  * 스레드 상태는 {@code BLOCKED}가 아니라 {@code WAITING}/{@code TIMED_WAITING}이다. {@link java.lang.Thread.State} 명세상
  * {@code BLOCKED}는 모니터 진입 대기 전용이고, {@code park()}로 기다리는 스레드는 {@code WAITING}이기 때문이다.
  * 스레드 덤프에는 {@code parking to wait for <0x...> (a java.util.concurrent.locks.ReentrantLock$NonfairSync)}로 나온다.
  *
- * <h2>synchronized와 ReentrantLock: 같은 구조, 다른 제어</h2>
+ * <h2 id="monitor-vs-aqs">synchronized와 ReentrantLock: 같은 구조, 다른 제어</h2>
  * 두 락은 구조가 같다. 소유자 하나, 락을 기다리는 리스트, 조건을 기다리는 리스트가 있고, 리스트에 들어간 스레드는 OS 대기로 잠든다.
  * 다른 것은 그 구조를 <b>JVM 안에 감춰 두느냐(모니터), 자바 코드로 드러내 호출자가 제어하게 하느냐(AQS)</b>다.
  * <p>
- * 두 쪽 이름의 대응은 이 표에 모았다. 모니터 쪽은 HotSpot 소스(C++)의 필드 이름이고({@link com.gunha.lock.monitor} 패키지 설명),
+ * 두 쪽 이름의 대응은 이 표에 모았다. 모니터 쪽은 HotSpot 소스(C++)의 필드 이름이고({@linkplain com.gunha.lock.monitor##terms monitor 패키지의 용어 절}),
  * AQS 쪽은 자바 필드·클래스 이름이다.
  * <table class="striped">
  * <caption>같은 구조</caption>
@@ -92,7 +92,7 @@
  * <ul>
  * <li><b>스레드 상태</b>: 모니터에 들어가려고 기다리면 {@code BLOCKED}, AQS는 {@code park()}로 기다리므로 {@code WAITING}이다(위 OS 관점).</li>
  * <li><b>리스트 구조와 순서</b>: sync queue는 리스트 하나에 꼬리로 넣고 머리부터 깨우므로 도착 순서(FIFO)다. 비공정 모드는 새로 온 스레드의 끼어들기만 허용한다.
- *     모니터는 입력함({@code _cxq})과 소비자 전용 목록({@code _EntryList}) 둘로 나뉘고, 깨어나는 순서가 도착 순서와 다르다.</li>
+ *     모니터는 입구({@code _cxq})와 다음 후보 목록({@code _EntryList}) 둘로 나뉘고, 깨어나는 순서가 도착 순서와 다르다.</li>
  * <li><b>스핀</b>: 모니터는 잠들기 전에 적응형 스핀을 하고, AQS는 거의 바로 park한다.</li>
  * <li><b>Java 21 가상 스레드</b>: {@code synchronized} 안에서 블로킹하면 캐리어 스레드가 묶인다(pinning, JDK 24에서 해결). AQS의 park는 캐리어를 놓아준다.</li>
  * </ul>

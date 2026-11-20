@@ -5,7 +5,7 @@ import java.util.concurrent.locks.LockSupport;
 /**
  * {@link LockSupport}를 감싼 래퍼. {@link LockSupport#park}/{@link LockSupport#unpark}만으로 일회용 신호를 만든다.
  * AQS와 {@code java.util.concurrent.locks}의 모든 락이 스레드를 재우고 깨울 때 결국 이 두 메서드를 쓴다.
- * 패키지 설명의 계층 그림에서 자바 코드로는 가장 아래층이다. 위층의 도구들은 여기에 {@code state} CAS, sync queue, 락 연동을 얹은 것이고,
+ * {@linkplain com.gunha.lock.locks##formula 패키지 설명의 계층 그림}에서 자바 코드로는 가장 아래층이다. 위층의 도구들은 여기에 {@code state} CAS, sync queue, 락 연동을 얹은 것이고,
  * 이 클래스는 그것들 없이 park/unpark를 직접 쓴다. 큐가 없으므로 대기자는 한 스레드라고 가정한다.
  *
  * <h2>permit 모델</h2>
@@ -20,7 +20,7 @@ import java.util.concurrent.locks.LockSupport;
  * <h2>JVM·OS 관점</h2>
  * {@code LockSupport.park} → {@code Unsafe.park} → 스레드마다 하나 있는 HotSpot {@code Parker}.
  * Parker는 {@code _counter}(= permit)와 OS 대기 수단을 가진다. Linux는 pthread 뮤텍스·조건 변수로
- * {@code pthread_cond_wait}(futex 시스템 콜)를 쓰고, Windows는 이벤트 객체에 {@code WaitForSingleObject}를 쓴다(docs/03 3.7절).
+ * {@code pthread_cond_wait}(futex 시스템 콜)를 쓰고, Windows는 이벤트 객체에 {@code WaitForSingleObject}를 쓴다(<a href="https://github.com/gunhaa/java_lock/blob/main/docs/03-hardware-and-os.md#futex">docs/03 3.7절</a>).
  * 플랫폼 스레드는 OS 스케줄러의 실행 큐에서 빠지고, 상태는 {@code WAITING}이 된다.
  * 가상 스레드라면 OS 스레드를 재우지 않고, 컨티뉴에이션을 힙에 저장한 뒤 캐리어 스레드에서 내려온다(unmount).
  *

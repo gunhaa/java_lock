@@ -7,7 +7,7 @@
  * 원자 변수는 반대로 아예 <b>락 없이</b>(lock-free) CAS 명령으로 동시성을 해결한다.
  *
  * <h2>구현 관점</h2>
- * {@link com.gunha.lock.locks} 패키지 설명의 공통 공식("{@code state} CAS + 큐 + park")으로 보면 이렇게 나뉜다.
+ * {@linkplain com.gunha.lock.locks##formula locks 패키지의 공통 공식}("{@code state} CAS + 큐 + park")으로 보면 이렇게 나뉜다.
  * <ul>
  * <li>원자 변수({@code Atomic*}, {@code LongAdder}): 공식에서 <b>큐와 park를 뺀 것</b>이다. CPU의 원자 명령(CAS, fetch-and-add)만 쓰고,
  *     CAS가 실패하면 잠들지 않고 바로 다시 시도한다. 그래서 대기 상태가 없고 OS도 관여하지 않지만,
