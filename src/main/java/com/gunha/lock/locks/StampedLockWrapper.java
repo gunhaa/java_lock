@@ -4,7 +4,7 @@ import java.util.concurrent.locks.StampedLock;
 
 /**
  * {@link StampedLock}을 감싼 래퍼. 2차원 좌표 (x, y)를 보호하며, JDK 공식 문서의 {@code Point} 예제를 바탕으로 했다.
- * 메서드 이름 끝에 그 메서드가 쓰는 {@code StampedLock} 모드(쓰기 락, 낙관적 읽기, 쓰기 락 변환)를 붙였다.
+ * 메서드 이름 끝에 그 메서드가 쓰는 {@code StampedLock} 모드(쓰기 락, 낙관적 읽기)를 붙였다.
  *
  * <h2>stamp란</h2>
  * {@code StampedLock}의 {@code state}는 64비트 long이다. 쓰기 락 비트, 버전, 독자 수가 들어 있다.
@@ -35,7 +35,7 @@ import java.util.concurrent.locks.StampedLock;
  * </ul>
  *
  * <h2>테스트로 확인</h2>
- * 낙관적 읽기 도중 쓰기가 끼어들면 {@code validate}가 실패해 읽기 락으로 다시 읽는다.
+ * 쓰기가 계속 끼어들어도 낙관적 읽기는 {@code validate}로 걸러 내므로, 섞인 좌표가 아니라 일관된 좌표만 본다.
  * {@snippet file="com/gunha/lock/locks/StampedLockWrapperTest.java" region="optimistic"}
  */
 public class StampedLockWrapper {
@@ -60,16 +60,9 @@ public class StampedLockWrapper {
 
 	/** {@link StampedLock#tryOptimisticRead()}로 원점까지의 거리를 읽는다. {@code validate}에 실패하면 읽기 락으로 다시 읽는다. */
 	public double distanceWithOptimisticRead() {
-		return distanceWithOptimisticRead(() -> {
-		});
-	}
-
-	/** 낙관적으로 읽은 직후 afterOptimisticRead를 실행한다. 테스트에서 그사이 쓰기를 끼워 넣는 데 쓴다. */
-	double distanceWithOptimisticRead(Runnable afterOptimisticRead) {
 		long stamp = sl.tryOptimisticRead();
 		double currentX = x;
 		double currentY = y;
-		afterOptimisticRead.run();
 		if (!sl.validate(stamp)) {
 			stamp = sl.readLock();
 			try {
@@ -81,30 +74,6 @@ public class StampedLockWrapper {
 			}
 		}
 		return Math.hypot(currentX, currentY);
-	}
-
-	/** 원점에 있을 때만 이동한다. 읽기 락을 쓰기 락으로 바꾸는 {@code tryConvertToWriteLock}을 보여 준다. */
-	public boolean moveIfAtOriginWithConvertToWriteLock(double newX, double newY) {
-		long stamp = sl.readLock();
-		try {
-			while (x == 0.0 && y == 0.0) {
-				// 다른 독자가 없으면 그 자리에서 쓰기 락으로 바뀐다(ReentrantReadWriteLock에는 없는 기능).
-				long writeStamp = sl.tryConvertToWriteLock(stamp);
-				if (writeStamp != 0L) {
-					stamp = writeStamp;
-					x = newX;
-					y = newY;
-					return true;
-				}
-				// 바꾸지 못하면 읽기 락을 놓고 쓰기 락을 새로 얻은 뒤 조건을 다시 확인한다.
-				sl.unlockRead(stamp);
-				stamp = sl.writeLock();
-			}
-			return false;
-		}
-		finally {
-			sl.unlock(stamp);
-		}
 	}
 
 }

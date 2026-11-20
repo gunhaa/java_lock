@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Function;
 
 /**
  * {@link ReentrantReadWriteLock}을 감싼 래퍼. 맵 하나를 보호해서, 읽기는 여럿이 동시에, 쓰기는 혼자서 한다.
@@ -22,7 +21,7 @@ import java.util.function.Function;
  * <li><b>다운그레이드 가능</b>: 쓰기 락을 쥔 채 읽기 락을 얻고 쓰기 락을 놓는다
  *     ({@code writeLock().lock()} → {@code readLock().lock()} → {@code writeLock().unlock()}).</li>
  * <li><b>업그레이드 불가</b>: 읽기 락을 쥔 채 쓰기 락을 요청하면 영원히 기다린다. 두 독자가 동시에 업그레이드하면
- *     서로의 읽기 락이 풀리기를 기다리는 교착이 되기 때문에 아예 허용하지 않는다.</li>
+ *     서로의 읽기 락이 풀리기를 기다리는 교착이 되기 때문에 아예 허용하지 않는다. 읽기 락을 먼저 놓고 쓰기 락을 얻어야 한다.</li>
  * <li>쓰기 기아 완화: 비공정 모드에서도 sync queue 맨 앞이 쓰기 요청이면 새 독자는 끼어들지 않고 줄을 선다.</li>
  * </ul>
  *
@@ -33,8 +32,8 @@ import java.util.function.Function;
  * 아주 짧은 읽기가 많다면 락 {@code state}에 아무것도 쓰지 않는(CAS가 없는) {@link StampedLockWrapper}의 낙관적 읽기가 대안이다.
  *
  * <h2>테스트로 확인</h2>
- * 쓰기 → 읽기 다운그레이드는 되고, 읽기 → 쓰기 업그레이드는 안 된다.
- * {@snippet file="com/gunha/lock/locks/ReentrantReadWriteLockWrapperTest.java" region="downgrade"}
+ * 읽기 락을 쥔 스레드가 있으면 쓰기는 {@code WAITING}으로 기다린다.
+ * {@snippet file="com/gunha/lock/locks/ReentrantReadWriteLockWrapperTest.java" region="writer-waits"}
  */
 public class ReentrantReadWriteLockWrapper<K, V> {
 
@@ -66,45 +65,6 @@ public class ReentrantReadWriteLockWrapper<K, V> {
 		}
 	}
 
-	/**
-	 * 값이 있으면 읽기 락만으로 돌려주고, 없으면 쓰기 락을 얻어 한 번만 로드한다.
-	 * 로드 뒤에는 다운그레이드해서 쓰기 락 없이 읽기 락으로 결과를 읽는다.
-	 */
-	public V getOrLoad(K key, Function<? super K, ? extends V> loader) {
-		readLock.lock();
-		try {
-			V cached = map.get(key);
-			if (cached != null) {
-				return cached;
-			}
-		}
-		finally {
-			// 업그레이드가 안 되므로 읽기 락을 먼저 놓아야 쓰기 락을 얻을 수 있다.
-			readLock.unlock();
-		}
-
-		writeLock.lock();
-		try {
-			// 읽기 락을 놓은 사이에 다른 스레드가 먼저 로드했을 수 있으니 다시 확인한다.
-			if (!map.containsKey(key)) {
-				map.put(key, loader.apply(key));
-			}
-			// 다운그레이드: 쓰기 락을 쥔 채 읽기 락을 얻는다. 쓰기 락 소유자는 읽기 락을 얻을 수 있다.
-			readLock.lock();
-		}
-		finally {
-			writeLock.unlock();
-		}
-
-		try {
-			// 다른 독자는 함께 들어올 수 있지만, 쓰기는 이 읽기 락이 풀릴 때까지 끼어들지 못한다.
-			return map.get(key);
-		}
-		finally {
-			readLock.unlock();
-		}
-	}
-
 	/** 읽기 락을 쥔 채 action을 실행한다. */
 	public void runWhileReadLocked(Runnable action) {
 		readLock.lock();
@@ -119,11 +79,6 @@ public class ReentrantReadWriteLockWrapper<K, V> {
 	/** {@link ReentrantReadWriteLock#getReadLockCount()}에 위임한다. 지금 잡혀 있는 읽기 락 수(모든 스레드 합계). */
 	public int getReadLockCount() {
 		return rwLock.getReadLockCount();
-	}
-
-	/** {@link ReentrantReadWriteLock#isWriteLocked()}에 위임한다. */
-	public boolean isWriteLocked() {
-		return rwLock.isWriteLocked();
 	}
 
 }

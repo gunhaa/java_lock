@@ -7,8 +7,6 @@ import com.gunha.lock.support.TestThreads.Started;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -33,6 +31,7 @@ class ReentrantReadWriteLockWrapperTest {
 			}));
 		}
 
+		// 두 독자가 모두 읽기 락 안에 들어와 있다.
 		entered.await();
 		assertThat(wrapper.getReadLockCount()).isEqualTo(2);
 
@@ -46,6 +45,7 @@ class ReentrantReadWriteLockWrapperTest {
 	@Test
 	@DisplayName("읽기 락이 남아 있으면 쓰기는 WAITING으로 기다린다")
 	void writerWaitsForReaders() throws Exception {
+		// @start region="writer-waits"
 		ReentrantReadWriteLockWrapper<String, String> wrapper = new ReentrantReadWriteLockWrapper<>();
 		CountDownLatch entered = new CountDownLatch(1);
 		CountDownLatch release = new CountDownLatch(1);
@@ -63,45 +63,13 @@ class ReentrantReadWriteLockWrapperTest {
 			return null;
 		});
 
+		// 쓰기 락은 배타라서 독자가 나갈 때까지 sync queue에서 기다린다.
 		TestThreads.awaitState(writer.thread(), Thread.State.WAITING);
-		assertThat(wrapper.isWriteLocked()).isFalse();
 
 		release.countDown();
 		reader.join();
 		writer.join();
 		assertThat(wrapper.get("k")).isEqualTo("v");
-	}
-
-	@Test
-	@DisplayName("getOrLoad는 여러 스레드가 동시에 불러도 한 번만 로드한다")
-	void loadsOnce() throws InterruptedException {
-		ReentrantReadWriteLockWrapper<String, Integer> wrapper = new ReentrantReadWriteLockWrapper<>();
-		AtomicInteger loads = new AtomicInteger();
-
-		TestThreads.runConcurrently(8, 1_000, () -> wrapper.getOrLoad("k", key -> loads.incrementAndGet()));
-
-		assertThat(loads.get()).isEqualTo(1);
-		assertThat(wrapper.get("k")).isEqualTo(1);
-	}
-
-	@Test
-	@DisplayName("쓰기 → 읽기 다운그레이드는 되지만, 읽기 → 쓰기 업그레이드는 안 된다")
-	void downgradeYesUpgradeNo() {
-		// @start region="downgrade"
-		ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
-
-		// 업그레이드: 읽기 락을 쥔 채로는 쓰기 락을 얻지 못한다. lock()이었다면 영원히 기다린다.
-		rwLock.readLock().lock();
-		assertThat(rwLock.writeLock().tryLock()).isFalse();
-		rwLock.readLock().unlock();
-
-		// 다운그레이드: 쓰기 락을 쥔 채 읽기 락을 얻고, 쓰기 락만 놓는다.
-		rwLock.writeLock().lock();
-		rwLock.readLock().lock();
-		rwLock.writeLock().unlock();
-		assertThat(rwLock.isWriteLocked()).isFalse();
-		assertThat(rwLock.getReadLockCount()).isEqualTo(1);
-		rwLock.readLock().unlock();
 		// @end
 	}
 
